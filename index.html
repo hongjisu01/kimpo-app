@@ -150,6 +150,16 @@
       padding: 1rem 1.05rem;
     }
 
+    .store-card.nearby-card {
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .store-card.nearby-card.active {
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+
     .store-card h3 {
       font-size: 1.05rem;
       font-weight: 700;
@@ -536,6 +546,7 @@
     let deals = []
     let currentFilter = '전체'
     let nearbyLeafletMap = null
+    const nearbyStoreMarkers = new Map()
 
     const DRINK_TYPES = ['소주', '맥주', '막걸리']
 
@@ -705,13 +716,49 @@
       const dealBadges = renderStoreDealBadges(id)
 
       return `
-        <article class="store-card">
+        <article class="store-card nearby-card" data-store-id="${esc(String(id))}" role="button" tabindex="0">
           <p class="distance">${esc(formatDistance(km))}</p>
           <h3>${esc(name)}</h3>
           <p class="addr">${esc(addr)}</p>
           <div class="badges">${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div>
         </article>
       `
+    }
+
+    function focusNearbyStore(storeIdVal) {
+      const id = String(storeIdVal)
+      const marker = nearbyStoreMarkers.get(id)
+      if (!marker || !nearbyLeafletMap) return
+
+      const { lat, lng } = marker.getLatLng()
+      nearbyLeafletMap.setView([lat, lng], 16, { animate: true })
+      marker.openPopup()
+
+      document.querySelectorAll('.nearby-card.active').forEach((el) => el.classList.remove('active'))
+      const card = document.querySelector(`.nearby-card[data-store-id="${id}"]`)
+      if (card) {
+        card.classList.add('active')
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }
+
+    function setupNearbyCardClicks() {
+      const list = document.querySelector('#nearby-content .card-list')
+      if (!list) return
+
+      list.addEventListener('click', (e) => {
+        const card = e.target.closest('.nearby-card')
+        if (!card?.dataset.storeId) return
+        focusNearbyStore(card.dataset.storeId)
+      })
+
+      list.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        const card = e.target.closest('.nearby-card')
+        if (!card?.dataset.storeId) return
+        e.preventDefault()
+        focusNearbyStore(card.dataset.storeId)
+      })
     }
 
     function initNearbyMap(userLat, userLng, ranked) {
@@ -722,6 +769,7 @@
         nearbyLeafletMap.remove()
         nearbyLeafletMap = null
       }
+      nearbyStoreMarkers.clear()
 
       nearbyLeafletMap = L.map(container).setView([userLat, userLng], 14)
 
@@ -752,6 +800,9 @@
           weight: 2,
           fillOpacity: 0.95,
         }).bindPopup(buildStorePopupHtml(store), { maxWidth: 280 })
+
+        const sid = storeId(store)
+        if (sid != null) nearbyStoreMarkers.set(String(sid), storeMarker)
 
         markerGroup.addLayer(storeMarker)
       })
@@ -819,6 +870,7 @@
       `)
 
       initNearbyMap(userLat, userLng, ranked)
+      setupNearbyCardClicks()
     }
 
     function loadNearby() {
