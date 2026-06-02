@@ -479,6 +479,13 @@
     .geo-status.pending {
       color: var(--muted);
     }
+
+    .addr-hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.45rem;
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
@@ -518,9 +525,10 @@
           <div class="field">
             <label for="r-addr">주소</label>
             <div class="addr-row">
-              <input id="r-addr" name="주소" type="text" required placeholder="예: 경기도 김포시 돌문로 60" />
+              <input id="r-addr" name="주소" type="text" required placeholder="예: 경기도 김포시 풍무로 123 (번지수까지 입력)" />
               <button type="button" class="btn-addr-check" id="btn-addr-check">주소 확인</button>
             </div>
+            <p class="addr-hint">💡 도로명 주소 + 번지수까지 입력해야 정확히 찾아요</p>
             <p id="geo-status" class="geo-status" hidden></p>
           </div>
           <div class="field">
@@ -593,6 +601,7 @@
     const KAKAO_REST_KEY = '15572497d330a96e5460225ce3ee3963'
     const MIN_ADDRESS_LENGTH = 10
     const MSG_ADDRESS_SHORT = '정확한 도로명 주소를 입력해주세요'
+    const MSG_ADDRESS_NO_LOT = '번지수까지 입력해주세요 (예: 풍무로 123)'
     const MSG_ADDRESS_NOT_FOUND = '주소를 찾을 수 없어요. 도로명 주소로 다시 입력해주세요'
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -1058,6 +1067,11 @@
       return Boolean(doc?.road_address || doc?.address)
     }
 
+    function lacksLotNumber(address) {
+      if (!/(로|길|대로)/.test(address)) return false
+      return !/(?:로|길|대로)\s*[\d]/.test(address)
+    }
+
     async function geocodeAddress(address) {
       const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`
       const res = await fetch(url, {
@@ -1104,6 +1118,12 @@
         return null
       }
 
+      if (lacksLotNumber(address)) {
+        reportGeocode = null
+        setGeoStatus('fail', MSG_ADDRESS_NO_LOT)
+        return null
+      }
+
       btn.disabled = true
       setGeoStatus('pending', '주소 검색 중…')
 
@@ -1144,6 +1164,11 @@
 
       if (address.length < MIN_ADDRESS_LENGTH) {
         setGeoStatus('fail', MSG_ADDRESS_SHORT)
+        return
+      }
+
+      if (lacksLotNumber(address)) {
+        setGeoStatus('fail', MSG_ADDRESS_NO_LOT)
         return
       }
 
