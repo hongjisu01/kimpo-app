@@ -119,13 +119,21 @@
     .map-popup-title {
       font-weight: 700;
       font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .map-popup-addr {
+      font-size: 0.78rem;
+      color: var(--muted);
       margin-bottom: 0.35rem;
+      line-height: 1.35;
     }
 
     .map-popup-deal {
       font-size: 0.8rem;
       color: #c2410c;
-      margin-top: 0.15rem;
+      font-weight: 600;
+      line-height: 1.4;
     }
 
     .nearby-section-title {
@@ -639,10 +647,8 @@
     }
 
     function storeCoords(store) {
-      const lat = pick(store, 'lat', 'latitude', '위도')
-      const lng = pick(store, 'lng', 'lon', 'longitude', '경도')
-      const la = parseFloat(lat)
-      const lo = parseFloat(lng)
+      const la = parseFloat(store?.lat ?? pick(store, 'latitude', '위도'))
+      const lo = parseFloat(store?.lng ?? pick(store, 'longitude', '경도', 'lon'))
       if (Number.isNaN(la) || Number.isNaN(lo)) return null
       return { lat: la, lng: lo }
     }
@@ -667,10 +673,8 @@
       document.getElementById('nearby-content').innerHTML = html
     }
 
-    function buildStorePopupHtml(store) {
-      const id = storeId(store)
-      const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
-      const dealLines = getDealsForStore(id)
+    function buildStoreDealSummary(storeIdVal) {
+      const lines = getDealsForStore(storeIdVal)
         .map((deal) => {
           const type = dealType(deal)
           const priceText = formatPrice(dealPrice(deal))
@@ -678,12 +682,20 @@
           return priceText ? `${type} ${priceText}` : type
         })
         .filter(Boolean)
+      return lines.length ? lines.join(' / ') : '할인 정보 없음'
+    }
 
-      const dealsHtml = dealLines.length
-        ? dealLines.map((line) => `<div class="map-popup-deal">${esc(line)}</div>`).join('')
-        : '<div class="map-popup-deal" style="color:#6b7280">할인 정보 없음</div>'
+    function buildStorePopupHtml(store) {
+      const id = storeId(store)
+      const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
+      const addr = pick(store, '주소', 'address') || '—'
+      const dealsText = buildStoreDealSummary(id)
 
-      return `<div class="map-popup-title">${esc(name)}</div>${dealsHtml}`
+      return `
+        <div class="map-popup-title">${esc(name)}</div>
+        <div class="map-popup-addr">${esc(addr)}</div>
+        <div class="map-popup-deal">${esc(dealsText)}</div>
+      `
     }
 
     function buildNearbyCard({ store, km }) {
@@ -718,37 +730,39 @@
         maxZoom: 19,
       }).addTo(nearbyLeafletMap)
 
-      L.circleMarker([userLat, userLng], {
+      const markerGroup = L.featureGroup()
+
+      const userMarker = L.circleMarker([userLat, userLng], {
         radius: 10,
         fillColor: '#2563eb',
         color: '#ffffff',
         weight: 3,
         fillOpacity: 0.95,
-      })
-        .addTo(nearbyLeafletMap)
-        .bindPopup('내 위치')
-
-      const bounds = L.latLngBounds([[userLat, userLng]])
+      }).bindPopup('내 위치')
+      markerGroup.addLayer(userMarker)
 
       ranked.forEach(({ store }) => {
         const coords = storeCoords(store)
         if (!coords) return
 
-        bounds.extend([coords.lat, coords.lng])
-
-        L.circleMarker([coords.lat, coords.lng], {
+        const storeMarker = L.circleMarker([coords.lat, coords.lng], {
           radius: 8,
           fillColor: '#1D9E75',
           color: '#ffffff',
           weight: 2,
           fillOpacity: 0.95,
-        })
-          .addTo(nearbyLeafletMap)
-          .bindPopup(buildStorePopupHtml(store))
+        }).bindPopup(buildStorePopupHtml(store), { maxWidth: 280 })
+
+        markerGroup.addLayer(storeMarker)
       })
 
-      if (ranked.length > 0) {
-        nearbyLeafletMap.fitBounds(bounds.pad(0.12))
+      markerGroup.addTo(nearbyLeafletMap)
+
+      if (markerGroup.getLayers().length > 0) {
+        nearbyLeafletMap.fitBounds(markerGroup.getBounds().pad(0.15), {
+          maxZoom: 16,
+          animate: true,
+        })
       }
 
       setTimeout(() => nearbyLeafletMap.invalidateSize(), 200)
@@ -758,7 +772,9 @@
       if (stores.length && deals.length) return true
 
       const [storesRes, dealsRes] = await Promise.all([
-        stores.length ? Promise.resolve({ data: stores, error: null }) : db.from('stores').select('*'),
+        stores.length
+          ? Promise.resolve({ data: stores, error: null })
+          : db.from('stores').select('*'),
         deals.length ? Promise.resolve({ data: deals, error: null }) : db.from('deals').select('*'),
       ])
 
