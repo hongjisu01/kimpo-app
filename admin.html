@@ -456,11 +456,14 @@
         </div>
         <div class="add-form">
           <div class="form-grid">
-            <input type="text" id="add-name" placeholder="가게이름 *" />
-            <input type="text" id="add-category" placeholder="카테고리 (예: 포장마차)" />
-            <input type="text" id="add-address" class="full" placeholder="주소 *" />
-            <input type="number" id="add-lat" placeholder="위도 (예: 37.615)" step="any" />
-            <input type="number" id="add-lng" placeholder="경도 (예: 126.716)" step="any" />
+            <div class="full" style="position:relative">
+              <input type="text" id="add-name" placeholder="가게 이름 검색 *" autocomplete="off" style="width:100%" />
+              <ul id="admin-suggest" style="display:none; list-style:none; position:absolute; top:100%; left:0; right:0; margin-top:4px; border:1px solid var(--border); border-radius:10px; background:var(--card); max-height:220px; overflow-y:auto; box-shadow:0 4px 16px rgba(0,0,0,0.10); z-index:999;"></ul>
+            </div>
+            <input type="text" id="add-category" placeholder="카테고리 (자동입력)" />
+            <input type="text" id="add-address" class="full" placeholder="주소 (가게 선택시 자동입력)" readonly style="background:#f3f4f6" />
+            <input type="number" id="add-lat" placeholder="위도 (자동입력)" step="any" style="background:#f3f4f6" readonly />
+            <input type="number" id="add-lng" placeholder="경도 (자동입력)" step="any" style="background:#f3f4f6" readonly />
           </div>
           <h3 style="margin-top:1rem; margin-bottom:0.65rem;">할인 정보 추가</h3>
           <div class="form-grid">
@@ -486,7 +489,66 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
   const ADMIN_PW = '8565'
 
-  const { createClient } = supabase
+  const KAKAO_REST_KEY = '15572497d330a96e5460225ce3ee3963'
+  const KIMPO_CENTER = { x: 126.7, y: 37.62, radius: 5000 }
+  let adminSearchTimer = null
+  let adminPlaceCache = []
+  let adminGeocode = null
+
+  document.getElementById('add-name')?.addEventListener('input', (e) => {
+    const q = e.target.value.trim()
+    adminGeocode = null
+    clearTimeout(adminSearchTimer)
+    if (q.length < 2) { hideAdminSuggest(); return }
+    adminSearchTimer = setTimeout(async () => {
+      try {
+        const url = new URL('https://dapi.kakao.com/v2/local/search/keyword.json')
+        url.searchParams.set('query', q)
+        url.searchParams.set('x', String(KIMPO_CENTER.x))
+        url.searchParams.set('y', String(KIMPO_CENTER.y))
+        url.searchParams.set('radius', String(KIMPO_CENTER.radius))
+        const res = await fetch(url.toString(), { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } })
+        const data = await res.json()
+        adminPlaceCache = data.documents || []
+        renderAdminSuggest(adminPlaceCache)
+      } catch { hideAdminSuggest() }
+    }, 300)
+  })
+
+  function renderAdminSuggest(places) {
+    const ul = document.getElementById('admin-suggest')
+    if (!places.length) { ul.style.display = 'none'; return }
+    ul.innerHTML = places.map((p, i) => `
+      <li onclick="selectAdminPlace(${i})" style="padding:0.65rem 0.85rem; border-bottom:1px solid var(--border); cursor:pointer; font-size:0.85rem;">
+        <strong style="display:block; font-weight:700">${p.place_name || ''}</strong>
+        <span style="font-size:0.75rem; color:var(--muted)">${p.road_address_name || p.address_name || ''}</span>
+      </li>
+    `).join('')
+    ul.style.display = 'block'
+  }
+
+  function selectAdminPlace(i) {
+    const p = adminPlaceCache[i]
+    if (!p) return
+    document.getElementById('add-name').value = p.place_name || ''
+    document.getElementById('add-address').value = p.road_address_name || p.address_name || ''
+    document.getElementById('add-category').value = (p.category_name || '').split(' > ').pop() || ''
+    document.getElementById('add-lat').value = p.y || ''
+    document.getElementById('add-lng').value = p.x || ''
+    adminGeocode = { lat: parseFloat(p.y), lng: parseFloat(p.x) }
+    hideAdminSuggest()
+  }
+
+  function hideAdminSuggest() {
+    const ul = document.getElementById('admin-suggest')
+    if (ul) ul.style.display = 'none'
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#add-name') && !e.target.closest('#admin-suggest')) hideAdminSuggest()
+  })
+
+
   const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
   function doLogin() {
@@ -689,8 +751,8 @@
     const name = document.getElementById('add-name').value.trim()
     const address = document.getElementById('add-address').value.trim()
     const category = document.getElementById('add-category').value.trim()
-    const lat = parseFloat(document.getElementById('add-lat').value)
-    const lng = parseFloat(document.getElementById('add-lng').value)
+    const lat = adminGeocode?.lat || parseFloat(document.getElementById('add-lat').value)
+    const lng = adminGeocode?.lng || parseFloat(document.getElementById('add-lng').value)
     const drinkType = document.getElementById('add-drink').value
     const salePrice = parseInt(document.getElementById('add-sale-price').value)
     const origPrice = parseInt(document.getElementById('add-orig-price').value) || null
@@ -724,6 +786,7 @@
       document.getElementById('add-category').value = ''
       document.getElementById('add-lat').value = ''
       document.getElementById('add-lng').value = ''
+      adminGeocode = null
       document.getElementById('add-sale-price').value = ''
       document.getElementById('add-orig-price').value = ''
       document.getElementById('add-happy').value = ''
