@@ -519,7 +519,7 @@
     }
 
     function dealPrice(deal) {
-      return pick(deal, '할인가격', 'price', 'discount_price')
+      return pick(deal, 'sale_price', '할인가격', 'price', 'discount_price')
     }
 
     function dealHappy(deal) {
@@ -527,7 +527,10 @@
     }
 
     function formatPrice(price) {
-      if (price == null) return ''
+      if (price == null || price === '') return ''
+      if (typeof price === 'number' && !Number.isNaN(price)) {
+        return price.toLocaleString('ko-KR') + '원'
+      }
       const s = String(price).trim()
       if (!s) return ''
       if (s.includes('원')) return s
@@ -563,16 +566,11 @@
 
     function renderDealBadge(deal) {
       const type = dealType(deal)
-      const rawPrice = dealPrice(deal)
+      const priceText = formatPrice(dealPrice(deal))
       const happy = dealHappy(deal)
-      const priceText = formatPrice(rawPrice)
 
-      let label = ''
-      if (type && priceText) label = `${type} ${priceText}`
-      else if (type && rawPrice) label = `${type} ${rawPrice}`
-      else if (priceText) label = priceText
-      else if (type) label = String(type)
-      else return ''
+      if (!type) return ''
+      const label = priceText ? `${type} ${priceText}` : type
 
       let html = `<span class="badge badge-deal">${esc(label)}</span>`
       if (happy && currentFilter === '해피아워') {
