@@ -432,6 +432,53 @@
     .drink-price::placeholder {
       color: #9ca3af;
     }
+
+    .addr-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: stretch;
+    }
+
+    .addr-row input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .btn-addr-check {
+      flex-shrink: 0;
+      padding: 0 0.9rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-addr-check:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .geo-status {
+      font-size: 0.82rem;
+      margin-top: 0.4rem;
+      font-weight: 600;
+    }
+
+    .geo-status.ok {
+      color: var(--primary-dark);
+    }
+
+    .geo-status.fail {
+      color: var(--danger);
+    }
+
+    .geo-status.pending {
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -470,7 +517,11 @@
           </div>
           <div class="field">
             <label for="r-addr">주소</label>
-            <input id="r-addr" name="주소" type="text" required placeholder="김포시 ○○동 …" />
+            <div class="addr-row">
+              <input id="r-addr" name="주소" type="text" required placeholder="김포시 ○○동 …" />
+              <button type="button" class="btn-addr-check" id="btn-addr-check">주소 확인</button>
+            </div>
+            <p id="geo-status" class="geo-status" hidden></p>
           </div>
           <div class="field">
             <label>술종류 및 할인가격</label>
@@ -539,6 +590,7 @@
   <script>
     const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
+    const KAKAO_REST_KEY = '15572497d330a96e5460225ce3ee3963'
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -547,6 +599,8 @@
     let currentFilter = '전체'
     let nearbyLeafletMap = null
     const nearbyStoreMarkers = new Map()
+    let reportGeocode = null
+    let geocodeDebounceTimer = null
 
     const DRINK_TYPES = ['소주', '맥주', '막걸리']
 
@@ -980,6 +1034,95 @@
       })
     })
 
+    function setGeoStatus(type, message) {
+      const el = document.getElementById('geo-status')
+      if (!el) return
+      el.hidden = false
+      el.className = `geo-status ${type}`
+      el.textContent = message
+    }
+
+    function clearGeoStatus() {
+      reportGeocode = null
+      const el = document.getElementById('geo-status')
+      if (!el) return
+      el.hidden = true
+      el.textContent = ''
+      el.className = 'geo-status'
+    }
+
+    async function geocodeAddress(address) {
+      const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`
+      const res = await fetch(url, {
+        headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` },
+      })
+
+      if (!res.ok) throw new Error(`주소 검색 API 오류 (${res.status})`)
+
+      const data = await res.json()
+      const doc = data.documents?.[0]
+      if (!doc) return null
+
+      const lat = parseFloat(doc.y)
+      const lng = parseFloat(doc.x)
+      if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+
+      return { lat, lng }
+    }
+
+    async function verifyReportAddress() {
+      const addrInput = document.getElementById('r-addr')
+      const btn = document.getElementById('btn-addr-check')
+      const address = addrInput?.value.trim()
+
+      if (!address) {
+        reportGeocode = null
+        setGeoStatus('fail', '주소를 다시 확인해주세요')
+        return null
+      }
+
+      btn.disabled = true
+      setGeoStatus('pending', '주소 검색 중…')
+
+      try {
+        const coords = await geocodeAddress(address)
+        if (!coords) {
+          reportGeocode = null
+          setGeoStatus('fail', '주소를 다시 확인해주세요')
+          return null
+        }
+
+        reportGeocode = coords
+        setGeoStatus('ok', '📍 위치 확인됨')
+        return coords
+      } catch {
+        reportGeocode = null
+        setGeoStatus('fail', '주소를 다시 확인해주세요')
+        return null
+      } finally {
+        btn.disabled = false
+      }
+    }
+
+    document.getElementById('btn-addr-check')?.addEventListener('click', () => {
+      clearTimeout(geocodeDebounceTimer)
+      verifyReportAddress()
+    })
+
+    document.getElementById('r-addr')?.addEventListener('input', () => {
+      reportGeocode = null
+      clearTimeout(geocodeDebounceTimer)
+
+      const address = document.getElementById('r-addr')?.value.trim() || ''
+      if (!address) {
+        clearGeoStatus()
+        return
+      }
+
+      setGeoStatus('pending', '주소 검색 중…')
+      geocodeDebounceTimer = setTimeout(() => verifyReportAddress(), 700)
+    })
+
     function collectReportRows(form) {
       const base = {
         가게이름: form['가게이름'].value.trim(),
@@ -989,6 +1132,11 @@
       const memo = form['메모'].value.trim()
       if (happy) base['해피아워시간'] = happy
       if (memo) base['메모'] = memo
+
+      if (reportGeocode) {
+        base.lat = reportGeocode.lat
+        base.lng = reportGeocode.lng
+      }
 
       const rows = []
       for (const type of DRINK_TYPES) {
@@ -1031,6 +1179,14 @@
       const form = e.target
       const success = document.getElementById('report-success')
 
+      if (!reportGeocode) {
+        const coords = await verifyReportAddress()
+        if (!coords) {
+          alert('주소 확인 버튼으로 위치를 먼저 확인해주세요.')
+          return
+        }
+      }
+
       const collected = collectReportRows(form)
       if (collected.error) {
         alert(collected.error)
@@ -1052,6 +1208,7 @@
 
       form.reset()
       resetDrinkRows()
+      clearGeoStatus()
       form.style.display = 'none'
       success.classList.add('show')
 
