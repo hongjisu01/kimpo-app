@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>술할인 김포</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary: #1D9E75;
+      --primary-dark: #178a66;
+      --primary-soft: #e8f7f1;
+      --bg: #f5f7f6;
+      --card: #fff;
+      --text: #1a1f1c;
+      --muted: #6b7280;
+      --border: #e5ebe8;
+      --danger: #dc2626;
+      --tab-h: 64px;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100dvh;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      box-shadow: 0 0 40px rgba(0,0,0,0.06);
+    }
+
+    .topbar {
+      background: var(--primary);
+      color: #fff;
+      padding: 1rem 1.1rem 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .topbar h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .topbar p {
+      font-size: 0.78rem;
+      opacity: 0.9;
+      margin-top: 0.15rem;
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1rem calc(var(--tab-h) + var(--safe-b) + 1rem);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* 필터 */
+    .filters {
+      display: flex;
+      gap: 0.45rem;
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+      margin-bottom: 1rem;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .filters::-webkit-scrollbar { display: none; }
+
+    .filter-btn {
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    /* 카드 */
+    .card-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .store-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem 1.05rem;
+    }
+
+    .store-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .store-card .addr {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.65rem;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 6px;
+    }
+
+    .badge-cat {
+      background: var(--primary-soft);
+      color: var(--primary-dark);
+    }
+
+    .badge-deal {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+    }
+
+    .badge-happy {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+
+    .status-box {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .status-box.error {
+      color: var(--danger);
+      background: #fef2f2;
+      border-radius: 12px;
+      border: 1px solid #fecaca;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      margin: 0 auto 0.75rem;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 제보 폼 */
+    .form-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+    }
+
+    .field { margin-bottom: 0.85rem; }
+
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      color: var(--text);
+    }
+
+    .field label .opt {
+      font-weight: 400;
+      color: var(--muted);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: var(--card);
+    }
+
+    .field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      outline: 2px solid var(--primary-soft);
+      border-color: var(--primary);
+    }
+
+    .btn-submit {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.85rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .toast-success {
+      display: none;
+      text-align: center;
+      padding: 2rem 1rem;
+      background: var(--primary-soft);
+      border-radius: 14px;
+      color: var(--primary-dark);
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .toast-success.show { display: block; }
+
+    /* 준비중 */
+    .coming-soon {
+      text-align: center;
+      padding: 4rem 1.5rem;
+    }
+
+    .coming-soon .icon {
+      font-size: 2.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .coming-soon h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+
+    .coming-soon p {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* 하단 탭바 */
+    .tabbar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 480px;
+      height: calc(var(--tab-h) + var(--safe-b));
+      padding-bottom: var(--safe-b);
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      z-index: 100;
+    }
+
+    .tab-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      border: none;
+      background: none;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0.4rem;
+    }
+
+    .tab-btn .ico { font-size: 1.25rem; line-height: 1; }
+
+    .tab-btn.active {
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1>술할인 김포</h1>
+      <p>김포 술 할인 정보 앱</p>
+    </header>
+
+    <main>
+      <!-- 홈 -->
+      <section id="panel-home" class="panel active">
+        <div class="filters" id="filters">
+          <button type="button" class="filter-btn active" data-filter="전체">전체</button>
+          <button type="button" class="filter-btn" data-filter="소주">소주</button>
+          <button type="button" class="filter-btn" data-filter="맥주">맥주</button>
+          <button type="button" class="filter-btn" data-filter="막걸리">막걸리</button>
+          <button type="button" class="filter-btn" data-filter="해피아워">해피아워</button>
+        </div>
+        <div id="home-content">
+          <div class="status-box">
+            <div class="spinner"></div>
+            <p>가게 정보를 불러오는 중…</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 제보하기 -->
+      <section id="panel-report" class="panel">
+        <p class="form-title">할인 정보 제보</p>
+        <div id="report-success" class="toast-success">제보해주셔서 감사합니다!</div>
+        <form id="report-form">
+          <div class="field">
+            <label for="r-name">가게이름</label>
+            <input id="r-name" name="가게이름" type="text" required placeholder="예: ○○포차" />
+          </div>
+          <div class="field">
+            <label for="r-addr">주소</label>
+            <input id="r-addr" name="주소" type="text" required placeholder="김포시 ○○동 …" />
+          </div>
+          <div class="field">
+            <label for="r-type">술종류</label>
+            <select id="r-type" name="술종류" required>
+              <option value="">선택하세요</option>
+              <option value="소주">소주</option>
+              <option value="맥주">맥주</option>
+              <option value="막걸리">막걸리</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="r-price">할인가격</label>
+            <input id="r-price" name="할인가격" type="text" required placeholder="예: 3,000원" />
+          </div>
+          <div class="field">
+            <label for="r-happy">해피아워 시간 <span class="opt">(선택)</span></label>
+            <input id="r-happy" name="해피아워시간" type="text" placeholder="예: 17:00~19:00" />
+          </div>
+          <div class="field">
+            <label for="r-memo">메모 <span class="opt">(선택)</span></label>
+            <textarea id="r-memo" name="메모" placeholder="추가 정보를 적어주세요"></textarea>
+          </div>
+          <button type="submit" class="btn-submit" id="btn-report">제보하기</button>
+        </form>
+      </section>
+
+      <!-- 내 주변 -->
+      <section id="panel-nearby" class="panel">
+        <div class="coming-soon">
+          <div class="icon">📍</div>
+          <h2>내 주변</h2>
+          <p>준비 중입니다.<br />곧 주변 가게 할인 정보를 보여드릴게요.</p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabbar" aria-label="메인 메뉴">
+      <button type="button" class="tab-btn active" data-tab="home">
+        <span class="ico">🏠</span>
+        <span>홈</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="report">
+        <span class="ico">✏️</span>
+        <span>제보하기</span>
+      </button>
+      <button type="button" class="tab-btn" data-tab="nearby">
+        <span class="ico">📍</span>
+        <span>내 주변</span>
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
+
+    const { createClient } = supabase
+    const db = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+    let stores = []
+    let deals = []
+    let currentFilter = '전체'
+
+    const DRINK_TYPES = ['소주', '맥주', '막걸리']
+
+    function pick(row, ...keys) {
+      for (const k of keys) {
+        const v = row[k]
+        if (v != null && String(v).trim() !== '') return v
+      }
+      return null
+    }
+
+    function esc(s) {
+      const d = document.createElement('div')
+      d.textContent = s == null ? '' : String(s)
+      return d.innerHTML
+    }
+
+    function storeId(row) {
+      return pick(row, 'id', 'store_id')
+    }
+
+    function dealStoreId(deal) {
+      return pick(deal, 'store_id', '가게_id', 'stores_id')
+    }
+
+    function dealType(deal) {
+      return pick(deal, '술종류', 'drink_type', 'type', 'category')
+    }
+
+    function dealPrice(deal) {
+      return pick(deal, '할인가격', 'price', 'discount_price')
+    }
+
+    function dealHappy(deal) {
+      return pick(deal, '해피아워시간', 'happy_hour', 'happy_hour_time')
+    }
+
+    function getDealsForStore(id) {
+      return deals.filter((d) => String(dealStoreId(d)) === String(id))
+    }
+
+    function isHappyHourDeal(deal) {
+      const t = dealHappy(deal)
+      return t != null && String(t).trim() !== ''
+    }
+
+    function matchFilter(deal, filter) {
+      if (filter === '전체') return true
+      if (filter === '해피아워') return isHappyHourDeal(deal)
+      return dealType(deal) === filter
+    }
+
+    function filteredDealsForStore(store, filter) {
+      const id = storeId(store)
+      return getDealsForStore(id).filter((d) => matchFilter(d, filter))
+    }
+
+    function storeVisible(store, filter) {
+      if (filter === '전체') return true
+      return filteredDealsForStore(store, filter).length > 0
+    }
+
+    function renderDealBadge(deal) {
+      const type = dealType(deal)
+      const price = dealPrice(deal)
+      const happy = dealHappy(deal)
+      let label = ''
+      if (type && price) label = `${type} ${price}`
+      else if (price) label = String(price)
+      else if (type) label = String(type)
+      else return ''
+
+      let html = `<span class="badge badge-deal">${esc(label)}</span>`
+      if (happy && currentFilter === '해피아워') {
+        html += `<span class="badge badge-happy">⏰ ${esc(happy)}</span>`
+      } else if (happy && currentFilter === '전체' && isHappyHourDeal(deal)) {
+        html += `<span class="badge badge-happy">해피 ${esc(happy)}</span>`
+      }
+      return html
+    }
+
+    function renderHome() {
+      const el = document.getElementById('home-content')
+      const visible = stores.filter((s) => storeVisible(s, currentFilter))
+
+      if (!visible.length) {
+        el.innerHTML = '<div class="status-box"><p>표시할 가게가 없습니다.</p></div>'
+        return
+      }
+
+      const html = visible.map((store) => {
+        const id = storeId(store)
+        const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
+        const addr = pick(store, '주소', 'address') || '—'
+        const cat = pick(store, '카테고리', 'category') || '기타'
+
+        const showDeals = currentFilter === '전체'
+          ? getDealsForStore(id)
+          : filteredDealsForStore(store, currentFilter)
+
+        const dealBadges = showDeals.map(renderDealBadge).filter(Boolean).join('')
+        const badges = `
+          <span class="badge badge-cat">${esc(cat)}</span>
+          ${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}
+        `
+
+        return `
+          <article class="store-card">
+            <h3>${esc(name)}</h3>
+            <p class="addr">${esc(addr)}</p>
+            <div class="badges">${badges}</div>
+          </article>
+        `
+      }).join('')
+
+      el.innerHTML = `<div class="card-list">${html}</div>`
+    }
+
+    async function loadData() {
+      const el = document.getElementById('home-content')
+      const [storesRes, dealsRes] = await Promise.all([
+        db.from('stores').select('*'),
+        db.from('deals').select('*'),
+      ])
+
+      if (storesRes.error) {
+        el.innerHTML = `<div class="status-box error"><p>가게 목록을 불러오지 못했습니다.<br>${esc(storesRes.error.message)}</p></div>`
+        return
+      }
+
+      stores = storesRes.data || []
+      deals = dealsRes.error ? [] : (dealsRes.data || [])
+      renderHome()
+    }
+
+    document.getElementById('filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('.filter-btn')
+      if (!btn) return
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'))
+      btn.classList.add('active')
+      currentFilter = btn.dataset.filter
+      renderHome()
+    })
+
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab
+        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'))
+        btn.classList.add('active')
+        document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'))
+        document.getElementById(`panel-${tab}`).classList.add('active')
+      })
+    })
+
+    document.getElementById('report-form').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const btn = document.getElementById('btn-report')
+      const form = e.target
+      const success = document.getElementById('report-success')
+
+      const payload = {
+        가게이름: form['가게이름'].value.trim(),
+        주소: form['주소'].value.trim(),
+        술종류: form['술종류'].value,
+        할인가격: form['할인가격'].value.trim(),
+      }
+
+      const happy = form['해피아워시간'].value.trim()
+      const memo = form['메모'].value.trim()
+      if (happy) payload['해피아워시간'] = happy
+      if (memo) payload['메모'] = memo
+
+      btn.disabled = true
+      success.classList.remove('show')
+      form.style.display = 'block'
+
+      const { error } = await db.from('reports').insert(payload)
+
+      btn.disabled = false
+
+      if (error) {
+        alert('제보 저장에 실패했습니다: ' + error.message)
+        return
+      }
+
+      form.reset()
+      form.style.display = 'none'
+      success.classList.add('show')
+
+      setTimeout(() => {
+        success.classList.remove('show')
+        form.style.display = 'block'
+      }, 3000)
+    })
+
+    loadData()
+  </script>
+</body>
+</html>
