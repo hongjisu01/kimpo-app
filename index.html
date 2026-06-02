@@ -116,6 +116,13 @@
       margin-bottom: 0.35rem;
     }
 
+    .store-card .distance {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.3rem;
+    }
+
     .store-card .addr {
       font-size: 0.85rem;
       color: var(--muted);
@@ -455,10 +462,10 @@
 
       <!-- 내 주변 -->
       <section id="panel-nearby" class="panel">
-        <div class="coming-soon">
-          <div class="icon">📍</div>
-          <h2>내 주변</h2>
-          <p>준비 중입니다.<br />곧 주변 가게 할인 정보를 보여드릴게요.</p>
+        <div id="nearby-content">
+          <div class="status-box">
+            <p>내 주변 탭을 누르면 가까운 가게를 보여드려요.</p>
+          </div>
         </div>
       </section>
     </main>
@@ -581,6 +588,137 @@
       return html
     }
 
+    function renderStoreDealBadges(id) {
+      return getDealsForStore(id)
+        .map((deal) => {
+          const type = dealType(deal)
+          const priceText = formatPrice(dealPrice(deal))
+          if (!type) return ''
+          const label = priceText ? `${type} ${priceText}` : type
+          let html = `<span class="badge badge-deal">${esc(label)}</span>`
+          const happy = dealHappy(deal)
+          if (happy && isHappyHourDeal(deal)) {
+            html += `<span class="badge badge-happy">해피 ${esc(happy)}</span>`
+          }
+          return html
+        })
+        .filter(Boolean)
+        .join('')
+    }
+
+    function storeCoords(store) {
+      const lat = pick(store, 'lat', 'latitude', '위도')
+      const lng = pick(store, 'lng', 'lon', 'longitude', '경도')
+      const la = parseFloat(lat)
+      const lo = parseFloat(lng)
+      if (Number.isNaN(la) || Number.isNaN(lo)) return null
+      return { lat: la, lng: lo }
+    }
+
+    function haversineKm(lat1, lon1, lat2, lon2) {
+      const R = 6371
+      const toRad = (d) => (d * Math.PI) / 180
+      const dLat = toRad(lat2 - lat1)
+      const dLon = toRad(lon2 - lon1)
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    }
+
+    function formatDistance(km) {
+      if (km < 1) return `${Math.round(km * 1000)}m`
+      return `${km.toFixed(1)}km`
+    }
+
+    function setNearbyContent(html) {
+      document.getElementById('nearby-content').innerHTML = html
+    }
+
+    async function ensureStoreData() {
+      if (stores.length && deals.length) return true
+
+      const [storesRes, dealsRes] = await Promise.all([
+        stores.length ? Promise.resolve({ data: stores, error: null }) : db.from('stores').select('*'),
+        deals.length ? Promise.resolve({ data: deals, error: null }) : db.from('deals').select('*'),
+      ])
+
+      if (storesRes.error) return { error: storesRes.error.message }
+      stores = storesRes.data || []
+      deals = dealsRes.error ? [] : (dealsRes.data || [])
+      return true
+    }
+
+    async function renderNearby(userLat, userLng) {
+      const ready = await ensureStoreData()
+      if (ready.error) {
+        setNearbyContent(`<div class="status-box error"><p>가게 목록을 불러오지 못했습니다.<br>${esc(ready.error)}</p></div>`)
+        return
+      }
+
+      const ranked = stores
+        .map((store) => {
+          const coords = storeCoords(store)
+          if (!coords) return null
+          return {
+            store,
+            km: haversineKm(userLat, userLng, coords.lat, coords.lng),
+          }
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.km - b.km)
+
+      if (!ranked.length) {
+        setNearbyContent(
+          '<div class="status-box"><p>거리를 계산할 수 있는 가게가 없습니다.<br>가게에 위도·경도가 등록되어 있는지 확인해주세요.</p></div>'
+        )
+        return
+      }
+
+      const html = ranked
+        .map(({ store, km }) => {
+          const id = storeId(store)
+          const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
+          const addr = pick(store, '주소', 'address') || '—'
+          const dealBadges = renderStoreDealBadges(id)
+
+          return `
+            <article class="store-card">
+              <p class="distance">${esc(formatDistance(km))}</p>
+              <h3>${esc(name)}</h3>
+              <p class="addr">${esc(addr)}</p>
+              <div class="badges">${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div>
+            </article>
+          `
+        })
+        .join('')
+
+      setNearbyContent(`<div class="card-list">${html}</div>`)
+    }
+
+    function loadNearby() {
+      setNearbyContent(
+        '<div class="status-box"><div class="spinner"></div><p>내 위치 찾는 중...</p></div>'
+      )
+
+      if (!navigator.geolocation) {
+        setNearbyContent('<div class="status-box error"><p>이 기기에서는 GPS를 사용할 수 없습니다.</p></div>')
+        return
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => renderNearby(pos.coords.latitude, pos.coords.longitude),
+        (err) => {
+          if (err.code === err.PERMISSION_DENIED) {
+            setNearbyContent('<div class="status-box error"><p>위치 권한을 허용해주세요</p></div>')
+            return
+          }
+          setNearbyContent('<div class="status-box error"><p>위치를 가져오지 못했습니다. 다시 시도해주세요.</p></div>')
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+      )
+    }
+
     function renderHome() {
       const el = document.getElementById('home-content')
       const visible = stores.filter((s) => storeVisible(s, currentFilter))
@@ -651,6 +789,7 @@
         btn.classList.add('active')
         document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'))
         document.getElementById(`panel-${tab}`).classList.add('active')
+        if (tab === 'nearby') loadNearby()
       })
     })
 
