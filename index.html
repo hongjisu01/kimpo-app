@@ -412,25 +412,59 @@
       cursor: pointer;
     }
 
+    .price-input-wrap {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .price-input-wrap:focus-within {
+      border-color: var(--primary);
+      outline: 2px solid var(--primary-soft);
+    }
+
+    .price-input-wrap:has(.drink-price:disabled) {
+      background: #f3f4f6;
+    }
+
     .drink-price {
       flex: 1;
       min-width: 0;
       padding: 0.5rem 0.65rem;
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border: none;
       font-size: 0.88rem;
       font-family: inherit;
-      background: #fff;
+      background: transparent;
     }
 
     .drink-price:disabled {
-      background: #f3f4f6;
       color: var(--muted);
       cursor: not-allowed;
     }
 
     .drink-price::placeholder {
       color: #9ca3af;
+    }
+
+    .price-unit {
+      display: flex;
+      align-items: center;
+      padding: 0 0.65rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: #f9fafb;
+      border-left: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .price-input-wrap:has(.drink-price:disabled) .price-unit {
+      background: #eef0f2;
     }
 
     .place-search-field {
@@ -564,21 +598,30 @@
                   <input type="checkbox" data-drink="소주" />
                   <span>소주</span>
                 </label>
-                <input type="text" class="drink-price" data-drink="소주" placeholder="예: 2,500원" disabled />
+                <div class="price-input-wrap">
+                  <input type="text" class="drink-price" data-drink="소주" inputmode="numeric" placeholder="예: 2500" disabled />
+                  <span class="price-unit">원</span>
+                </div>
               </div>
               <div class="drink-row">
                 <label class="drink-check">
                   <input type="checkbox" data-drink="맥주" />
                   <span>맥주</span>
                 </label>
-                <input type="text" class="drink-price" data-drink="맥주" placeholder="예: 2,900원" disabled />
+                <div class="price-input-wrap">
+                  <input type="text" class="drink-price" data-drink="맥주" inputmode="numeric" placeholder="예: 2500" disabled />
+                  <span class="price-unit">원</span>
+                </div>
               </div>
               <div class="drink-row">
                 <label class="drink-check">
                   <input type="checkbox" data-drink="막걸리" />
                   <span>막걸리</span>
                 </label>
-                <input type="text" class="drink-price" data-drink="막걸리" placeholder="예: 3,000원" disabled />
+                <div class="price-input-wrap">
+                  <input type="text" class="drink-price" data-drink="막걸리" inputmode="numeric" placeholder="예: 2500" disabled />
+                  <span class="price-unit">원</span>
+                </div>
               </div>
             </div>
           </div>
@@ -685,6 +728,16 @@
       const num = s.replace(/[^\d]/g, '')
       if (num) return Number(num).toLocaleString('ko-KR') + '원'
       return s
+    }
+
+    function sanitizePriceInput(input) {
+      const digits = input.value.replace(/[^\d]/g, '')
+      if (input.value !== digits) input.value = digits
+    }
+
+    function parsePriceToInt(value) {
+      const num = parseInt(String(value).replace(/[^\d]/g, ''), 10)
+      return Number.isNaN(num) ? null : num
     }
 
     function getDealsForStore(id) {
@@ -1070,6 +1123,10 @@
       })
     })
 
+    document.querySelectorAll('.drink-price').forEach((input) => {
+      input.addEventListener('input', () => sanitizePriceInput(input))
+    })
+
     function setGeoStatus(type, message) {
       const el = document.getElementById('geo-status')
       if (!el) return
@@ -1232,15 +1289,15 @@
         const priceInput = document.querySelector(`.drink-price[data-drink="${type}"]`)
         if (!cb?.checked) continue
 
-        const priceRaw = priceInput.value.trim()
-        if (!priceRaw) {
-          return { error: `${type} 할인가격을 입력해주세요.` }
+        const priceNum = parsePriceToInt(priceInput.value)
+        if (priceNum == null || priceNum <= 0) {
+          return { error: `${type} 할인가격을 숫자로 입력해주세요.` }
         }
 
         rows.push({
           ...base,
           술종류: type,
-          할인가격: formatPrice(priceRaw),
+          할인가격: priceNum,
         })
       }
 
