@@ -1268,22 +1268,18 @@
       if (!e.target.closest('.place-search-field')) hidePlaceSuggest()
     })
 
-    function collectReportRows(form) {
-      const base = {
+    function collectReportData(form) {
+      const store = {
         가게이름: form['가게이름'].value.trim(),
         주소: form['주소'].value.trim(),
+        lat: reportGeocode.lat,
+        lng: reportGeocode.lng,
       }
+
       const happy = form['해피아워시간'].value.trim()
       const memo = form['메모'].value.trim()
-      if (happy) base['해피아워시간'] = happy
-      if (memo) base['메모'] = memo
+      const deals = []
 
-      if (reportGeocode) {
-        base.lat = reportGeocode.lat
-        base.lng = reportGeocode.lng
-      }
-
-      const rows = []
       for (const type of DRINK_TYPES) {
         const cb = document.querySelector(`#drink-rows input[type="checkbox"][data-drink="${type}"]`)
         const priceInput = document.querySelector(`.drink-price[data-drink="${type}"]`)
@@ -1294,18 +1290,42 @@
           return { error: `${type} 할인가격을 숫자로 입력해주세요.` }
         }
 
-        rows.push({
-          ...base,
+        const deal = {
           술종류: type,
-          할인가격: priceNum,
-        })
+          sale_price: priceNum,
+        }
+        if (happy) deal.해피아워시간 = happy
+        deals.push(deal)
       }
 
-      if (!rows.length) {
+      if (!deals.length) {
         return { error: '술종류를 하나 이상 선택해주세요.' }
       }
 
-      return { rows }
+      return { store, deals, memo, happy }
+    }
+
+    async function saveReportToStoresAndDeals(data) {
+      const { data: newStore, error: storeError } = await db
+        .from('stores')
+        .insert(data.store)
+        .select('id')
+        .single()
+
+      if (storeError) throw storeError
+
+      const storeId = newStore.id
+      const dealRows = data.deals.map((deal) => ({
+        store_id: storeId,
+        술종류: deal.술종류,
+        sale_price: deal.sale_price,
+        ...(deal.해피아워시간 ? { 해피아워시간: deal.해피아워시간 } : {}),
+      }))
+
+      const { error: dealsError } = await db.from('deals').insert(dealRows)
+      if (dealsError) throw dealsError
+
+      return storeId
     }
 
     function resetDrinkRows() {
@@ -1329,7 +1349,7 @@
         return
       }
 
-      const collected = collectReportRows(form)
+      const collected = collectReportData(form)
       if (collected.error) {
         alert(collected.error)
         return
@@ -1339,14 +1359,16 @@
       success.classList.remove('show')
       form.style.display = 'block'
 
-      const { error } = await db.from('reports').insert(collected.rows)
-
-      btn.disabled = false
-
-      if (error) {
-        alert('제보 저장에 실패했습니다: ' + error.message)
+      try {
+        await saveReportToStoresAndDeals(collected)
+        await loadData()
+      } catch (err) {
+        alert('제보 저장에 실패했습니다: ' + (err.message || String(err)))
+        btn.disabled = false
         return
       }
+
+      btn.disabled = false
 
       form.reset()
       resetDrinkRows()
