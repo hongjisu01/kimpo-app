@@ -314,13 +314,74 @@
     .tab-btn.active {
       color: var(--primary);
     }
+
+    /* 제보 술종류 행 */
+    .drink-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .drink-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.55rem 0.65rem;
+    }
+
+    .drink-row:has(input[type="checkbox"]:checked) {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+    }
+
+    .drink-check {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      min-width: 4.5rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .drink-check input {
+      width: 1rem;
+      height: 1rem;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .drink-price {
+      flex: 1;
+      min-width: 0;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-family: inherit;
+      background: #fff;
+    }
+
+    .drink-price:disabled {
+      background: #f3f4f6;
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .drink-price::placeholder {
+      color: #9ca3af;
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <h1>술싸</h1>
-      <p>김포 술 할인 정보 앱</p>
+      <p>김포 술 할인 정보</p>
     </header>
 
     <main>
@@ -355,17 +416,30 @@
             <input id="r-addr" name="주소" type="text" required placeholder="김포시 ○○동 …" />
           </div>
           <div class="field">
-            <label for="r-type">술종류</label>
-            <select id="r-type" name="술종류" required>
-              <option value="">선택하세요</option>
-              <option value="소주">소주</option>
-              <option value="맥주">맥주</option>
-              <option value="막걸리">막걸리</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="r-price">할인가격</label>
-            <input id="r-price" name="할인가격" type="text" required placeholder="예: 3,000원" />
+            <label>술종류 및 할인가격</label>
+            <div class="drink-rows" id="drink-rows">
+              <div class="drink-row">
+                <label class="drink-check">
+                  <input type="checkbox" data-drink="소주" />
+                  <span>소주</span>
+                </label>
+                <input type="text" class="drink-price" data-drink="소주" placeholder="예: 2,500원" disabled />
+              </div>
+              <div class="drink-row">
+                <label class="drink-check">
+                  <input type="checkbox" data-drink="맥주" />
+                  <span>맥주</span>
+                </label>
+                <input type="text" class="drink-price" data-drink="맥주" placeholder="예: 2,900원" disabled />
+              </div>
+              <div class="drink-row">
+                <label class="drink-check">
+                  <input type="checkbox" data-drink="막걸리" />
+                  <span>막걸리</span>
+                </label>
+                <input type="text" class="drink-price" data-drink="막걸리" placeholder="예: 3,000원" disabled />
+              </div>
+            </div>
           </div>
           <div class="field">
             <label for="r-happy">해피아워 시간 <span class="opt">(선택)</span></label>
@@ -452,6 +526,16 @@
       return pick(deal, '해피아워시간', 'happy_hour', 'happy_hour_time')
     }
 
+    function formatPrice(price) {
+      if (price == null) return ''
+      const s = String(price).trim()
+      if (!s) return ''
+      if (s.includes('원')) return s
+      const num = s.replace(/[^\d]/g, '')
+      if (num) return Number(num).toLocaleString('ko-KR') + '원'
+      return s
+    }
+
     function getDealsForStore(id) {
       return deals.filter((d) => String(dealStoreId(d)) === String(id))
     }
@@ -479,11 +563,14 @@
 
     function renderDealBadge(deal) {
       const type = dealType(deal)
-      const price = dealPrice(deal)
+      const rawPrice = dealPrice(deal)
       const happy = dealHappy(deal)
+      const priceText = formatPrice(rawPrice)
+
       let label = ''
-      if (type && price) label = `${type} ${price}`
-      else if (price) label = String(price)
+      if (type && priceText) label = `${type} ${priceText}`
+      else if (type && rawPrice) label = `${type} ${rawPrice}`
+      else if (priceText) label = priceText
       else if (type) label = String(type)
       else return ''
 
@@ -569,29 +656,78 @@
       })
     })
 
+    document.querySelectorAll('#drink-rows input[type="checkbox"]').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const type = cb.dataset.drink
+        const priceInput = document.querySelector(`.drink-price[data-drink="${type}"]`)
+        priceInput.disabled = !cb.checked
+        if (!cb.checked) priceInput.value = ''
+        if (cb.checked) priceInput.focus()
+      })
+    })
+
+    function collectReportRows(form) {
+      const base = {
+        가게이름: form['가게이름'].value.trim(),
+        주소: form['주소'].value.trim(),
+      }
+      const happy = form['해피아워시간'].value.trim()
+      const memo = form['메모'].value.trim()
+      if (happy) base['해피아워시간'] = happy
+      if (memo) base['메모'] = memo
+
+      const rows = []
+      for (const type of DRINK_TYPES) {
+        const cb = document.querySelector(`#drink-rows input[type="checkbox"][data-drink="${type}"]`)
+        const priceInput = document.querySelector(`.drink-price[data-drink="${type}"]`)
+        if (!cb?.checked) continue
+
+        const priceRaw = priceInput.value.trim()
+        if (!priceRaw) {
+          return { error: `${type} 할인가격을 입력해주세요.` }
+        }
+
+        rows.push({
+          ...base,
+          술종류: type,
+          할인가격: formatPrice(priceRaw),
+        })
+      }
+
+      if (!rows.length) {
+        return { error: '술종류를 하나 이상 선택해주세요.' }
+      }
+
+      return { rows }
+    }
+
+    function resetDrinkRows() {
+      document.querySelectorAll('#drink-rows input[type="checkbox"]').forEach((cb) => {
+        cb.checked = false
+      })
+      document.querySelectorAll('.drink-price').forEach((input) => {
+        input.value = ''
+        input.disabled = true
+      })
+    }
+
     document.getElementById('report-form').addEventListener('submit', async (e) => {
       e.preventDefault()
       const btn = document.getElementById('btn-report')
       const form = e.target
       const success = document.getElementById('report-success')
 
-      const payload = {
-        가게이름: form['가게이름'].value.trim(),
-        주소: form['주소'].value.trim(),
-        술종류: form['술종류'].value,
-        할인가격: form['할인가격'].value.trim(),
+      const collected = collectReportRows(form)
+      if (collected.error) {
+        alert(collected.error)
+        return
       }
-
-      const happy = form['해피아워시간'].value.trim()
-      const memo = form['메모'].value.trim()
-      if (happy) payload['해피아워시간'] = happy
-      if (memo) payload['메모'] = memo
 
       btn.disabled = true
       success.classList.remove('show')
       form.style.display = 'block'
 
-      const { error } = await db.from('reports').insert(payload)
+      const { error } = await db.from('reports').insert(collected.rows)
 
       btn.disabled = false
 
@@ -601,6 +737,7 @@
       }
 
       form.reset()
+      resetDrinkRows()
       form.style.display = 'none'
       success.classList.add('show')
 
