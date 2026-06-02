@@ -1270,7 +1270,7 @@
 
     function collectReportData(form) {
       const store = {
-        가게이름: form['가게이름'].value.trim(),
+        name: form['가게이름'].value.trim(),
         주소: form['주소'].value.trim(),
         lat: reportGeocode.lat,
         lng: reportGeocode.lng,
@@ -1317,7 +1317,7 @@
       const storeId = newStore.id
       const dealRows = data.deals.map((deal) => ({
         store_id: storeId,
-        술종류: deal.술종류,
+        drink_type: deal.술종류,
         sale_price: deal.sale_price,
         ...(deal.해피아워시간 ? { 해피아워시간: deal.해피아워시간 } : {}),
       }))
