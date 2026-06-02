@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>술싸</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=006a0f6a0626dc06f75b66d845c5f920&autoload=false"></script>
   <style>
     :root {
       --primary: #1D9E75;
@@ -102,6 +103,23 @@
 
     /* 카드 */
     .card-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .nearby-map {
+      width: 100%;
+      height: 250px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 1rem;
+      background: #e5ebe8;
+    }
+
+    .nearby-section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.65rem;
+      color: var(--text);
+    }
 
     .store-card {
       background: var(--card);
@@ -489,6 +507,7 @@
   <script>
     const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
+    const KAKAO_APP_KEY = '006a0f6a0626dc06f75b66d845c5f920'
 
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -496,6 +515,8 @@
     let stores = []
     let deals = []
     let currentFilter = '전체'
+    let nearbyOpenInfoWindow = null
+    let kakaoSdkPromise = null
 
     const DRINK_TYPES = ['소주', '맥주', '막걸리']
 
@@ -635,6 +656,109 @@
       document.getElementById('nearby-content').innerHTML = html
     }
 
+    function loadKakaoMapSdk() {
+      if (window.kakao?.maps) {
+        return new Promise((resolve) => kakao.maps.load(resolve))
+      }
+      if (kakaoSdkPromise) return kakaoSdkPromise
+
+      kakaoSdkPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[src*="dapi.kakao.com"]')
+        const onReady = () => {
+          if (!window.kakao?.maps) {
+            reject(new Error('카카오맵 SDK를 불러오지 못했습니다.'))
+            return
+          }
+          kakao.maps.load(resolve)
+        }
+
+        if (existing) {
+          if (window.kakao?.maps) onReady()
+          else existing.addEventListener('load', onReady)
+          existing.addEventListener('error', () => reject(new Error('카카오맵 로드 실패')))
+          return
+        }
+
+        const script = document.createElement('script')
+        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`
+        script.onload = onReady
+        script.onerror = () => reject(new Error('카카오맵 로드 실패'))
+        document.head.appendChild(script)
+      })
+
+      return kakaoSdkPromise
+    }
+
+    function buildNearbyCard({ store, km }) {
+      const id = storeId(store)
+      const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
+      const addr = pick(store, '주소', 'address') || '—'
+      const dealBadges = renderStoreDealBadges(id)
+
+      return `
+        <article class="store-card">
+          <p class="distance">${esc(formatDistance(km))}</p>
+          <h3>${esc(name)}</h3>
+          <p class="addr">${esc(addr)}</p>
+          <div class="badges">${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div>
+        </article>
+      `
+    }
+
+    function initNearbyMap(userLat, userLng, ranked) {
+      const container = document.getElementById('nearby-map')
+      if (!container || !window.kakao?.maps) return
+
+      const userPos = new kakao.maps.LatLng(userLat, userLng)
+      const map = new kakao.maps.Map(container, {
+        center: userPos,
+        level: 5,
+      })
+
+      const bounds = new kakao.maps.LatLngBounds()
+      bounds.extend(userPos)
+
+      const blueMarkerImage = new kakao.maps.MarkerImage(
+        'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_blue.png',
+        new kakao.maps.Size(36, 37),
+        { offset: new kakao.maps.Point(18, 37) }
+      )
+
+      new kakao.maps.Marker({
+        map,
+        position: userPos,
+        image: blueMarkerImage,
+        zIndex: 3,
+      })
+
+      ranked.forEach(({ store }) => {
+        const coords = storeCoords(store)
+        if (!coords) return
+
+        const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
+        const pos = new kakao.maps.LatLng(coords.lat, coords.lng)
+        bounds.extend(pos)
+
+        const marker = new kakao.maps.Marker({ map, position: pos })
+        const infoWindow = new kakao.maps.InfoWindow({
+          content: `<div style="padding:6px 10px;font-size:13px;font-weight:600;white-space:nowrap;">${esc(name)}</div>`,
+          removable: true,
+        })
+
+        kakao.maps.event.addListener(marker, 'click', () => {
+          if (nearbyOpenInfoWindow) nearbyOpenInfoWindow.close()
+          infoWindow.open(map, marker)
+          nearbyOpenInfoWindow = infoWindow
+        })
+      })
+
+      if (ranked.length > 0) {
+        map.setBounds(bounds, 48, 48, 48, 48)
+      }
+
+      setTimeout(() => map.relayout(), 200)
+    }
+
     async function ensureStoreData() {
       if (stores.length && deals.length) return true
 
@@ -675,25 +799,20 @@
         return
       }
 
-      const html = ranked
-        .map(({ store, km }) => {
-          const id = storeId(store)
-          const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
-          const addr = pick(store, '주소', 'address') || '—'
-          const dealBadges = renderStoreDealBadges(id)
+      const cardsHtml = ranked.map(buildNearbyCard).join('')
 
-          return `
-            <article class="store-card">
-              <p class="distance">${esc(formatDistance(km))}</p>
-              <h3>${esc(name)}</h3>
-              <p class="addr">${esc(addr)}</p>
-              <div class="badges">${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div>
-            </article>
-          `
-        })
-        .join('')
+      setNearbyContent(`
+        <div id="nearby-map" class="nearby-map" aria-label="주변 가게 지도"></div>
+        <p class="nearby-section-title">가까운 가게</p>
+        <div class="card-list">${cardsHtml}</div>
+      `)
 
-      setNearbyContent(`<div class="card-list">${html}</div>`)
+      try {
+        await loadKakaoMapSdk()
+        initNearbyMap(userLat, userLng, ranked)
+      } catch (mapErr) {
+        console.warn(mapErr)
+      }
     }
 
     function loadNearby() {
