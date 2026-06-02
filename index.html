@@ -518,7 +518,7 @@
           <div class="field">
             <label for="r-addr">주소</label>
             <div class="addr-row">
-              <input id="r-addr" name="주소" type="text" required placeholder="김포시 ○○동 …" />
+              <input id="r-addr" name="주소" type="text" required placeholder="예: 경기도 김포시 돌문로 60" />
               <button type="button" class="btn-addr-check" id="btn-addr-check">주소 확인</button>
             </div>
             <p id="geo-status" class="geo-status" hidden></p>
@@ -591,6 +591,9 @@
     const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
     const KAKAO_REST_KEY = '15572497d330a96e5460225ce3ee3963'
+    const MIN_ADDRESS_LENGTH = 10
+    const MSG_ADDRESS_SHORT = '정확한 도로명 주소를 입력해주세요'
+    const MSG_ADDRESS_NOT_FOUND = '주소를 찾을 수 없어요. 도로명 주소로 다시 입력해주세요'
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -1051,6 +1054,10 @@
       el.className = 'geo-status'
     }
 
+    function hasKakaoAddressFields(doc) {
+      return Boolean(doc?.road_address || doc?.address)
+    }
+
     async function geocodeAddress(address) {
       const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`
       const res = await fetch(url, {
@@ -1060,14 +1067,24 @@
       if (!res.ok) throw new Error(`주소 검색 API 오류 (${res.status})`)
 
       const data = await res.json()
-      const doc = data.documents?.[0]
-      if (!doc) return null
+      const documents = data.documents
+
+      if (!documents || documents.length === 0) {
+        return { success: false }
+      }
+
+      const doc = documents[0]
+      if (!hasKakaoAddressFields(doc)) {
+        return { success: false }
+      }
 
       const lat = parseFloat(doc.y)
       const lng = parseFloat(doc.x)
-      if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        return { success: false }
+      }
 
-      return { lat, lng }
+      return { success: true, lat, lng }
     }
 
     async function verifyReportAddress() {
@@ -1077,7 +1094,13 @@
 
       if (!address) {
         reportGeocode = null
-        setGeoStatus('fail', '주소를 다시 확인해주세요')
+        setGeoStatus('fail', MSG_ADDRESS_SHORT)
+        return null
+      }
+
+      if (address.length < MIN_ADDRESS_LENGTH) {
+        reportGeocode = null
+        setGeoStatus('fail', MSG_ADDRESS_SHORT)
         return null
       }
 
@@ -1085,19 +1108,19 @@
       setGeoStatus('pending', '주소 검색 중…')
 
       try {
-        const coords = await geocodeAddress(address)
-        if (!coords) {
+        const result = await geocodeAddress(address)
+        if (!result.success) {
           reportGeocode = null
-          setGeoStatus('fail', '주소를 다시 확인해주세요')
+          setGeoStatus('fail', MSG_ADDRESS_NOT_FOUND)
           return null
         }
 
-        reportGeocode = coords
+        reportGeocode = { lat: result.lat, lng: result.lng }
         setGeoStatus('ok', '📍 위치 확인됨')
-        return coords
+        return reportGeocode
       } catch {
         reportGeocode = null
-        setGeoStatus('fail', '주소를 다시 확인해주세요')
+        setGeoStatus('fail', MSG_ADDRESS_NOT_FOUND)
         return null
       } finally {
         btn.disabled = false
@@ -1116,6 +1139,11 @@
       const address = document.getElementById('r-addr')?.value.trim() || ''
       if (!address) {
         clearGeoStatus()
+        return
+      }
+
+      if (address.length < MIN_ADDRESS_LENGTH) {
+        setGeoStatus('fail', MSG_ADDRESS_SHORT)
         return
       }
 
@@ -1182,7 +1210,7 @@
       if (!reportGeocode) {
         const coords = await verifyReportAddress()
         if (!coords) {
-          alert('주소 확인 버튼으로 위치를 먼저 확인해주세요.')
+          alert('도로명 주소를 입력한 뒤 「주소 확인」으로 위치를 확인해주세요.')
           return
         }
       }
