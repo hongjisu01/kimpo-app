@@ -433,33 +433,68 @@
       color: #9ca3af;
     }
 
-    .addr-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: stretch;
+    .place-search-field {
+      position: relative;
     }
 
-    .addr-row input {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .btn-addr-check {
-      flex-shrink: 0;
-      padding: 0 0.9rem;
-      background: var(--primary);
-      color: #fff;
-      border: none;
+    .place-suggest {
+      list-style: none;
+      margin-top: 0.35rem;
+      border: 1px solid var(--border);
       border-radius: 10px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
+      background: var(--card);
+      max-height: 240px;
+      overflow-y: auto;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
     }
 
-    .btn-addr-check:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    .place-suggest-item {
+      padding: 0.7rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .place-suggest-item:last-child {
+      border-bottom: none;
+    }
+
+    .place-suggest-item:hover,
+    .place-suggest-item:focus {
+      background: var(--primary-soft);
+      outline: none;
+    }
+
+    .place-suggest-item .place-name {
+      display: block;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .place-suggest-item .place-addr {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      line-height: 1.35;
+    }
+
+    .place-suggest-item .place-cat {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--primary-dark);
+      margin-top: 0.2rem;
+    }
+
+    .place-suggest-empty {
+      padding: 0.9rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    #r-addr[readonly] {
+      background: #f3f4f6;
+      color: var(--text);
     }
 
     .geo-status {
@@ -478,13 +513,6 @@
 
     .geo-status.pending {
       color: var(--muted);
-    }
-
-    .addr-hint {
-      font-size: 0.78rem;
-      color: var(--muted);
-      margin-top: 0.45rem;
-      line-height: 1.45;
     }
   </style>
 </head>
@@ -518,17 +546,14 @@
         <p class="form-title">할인 정보 제보</p>
         <div id="report-success" class="toast-success">제보해주셔서 감사합니다!</div>
         <form id="report-form">
-          <div class="field">
+          <div class="field place-search-field">
             <label for="r-name">가게이름</label>
-            <input id="r-name" name="가게이름" type="text" required placeholder="예: ○○포차" />
+            <input id="r-name" name="가게이름" type="text" required placeholder="가게 이름을 검색하세요" autocomplete="off" />
+            <ul id="place-suggest" class="place-suggest" hidden></ul>
           </div>
           <div class="field">
             <label for="r-addr">주소</label>
-            <div class="addr-row">
-              <input id="r-addr" name="주소" type="text" required placeholder="예: 경기도 김포시 풍무로 123 (번지수까지 입력)" />
-              <button type="button" class="btn-addr-check" id="btn-addr-check">주소 확인</button>
-            </div>
-            <p class="addr-hint">💡 도로명 주소 + 번지수까지 입력해야 정확히 찾아요</p>
+            <input id="r-addr" name="주소" type="text" required readonly placeholder="검색 결과에서 가게를 선택하세요" />
             <p id="geo-status" class="geo-status" hidden></p>
           </div>
           <div class="field">
@@ -599,10 +624,7 @@
     const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
     const KAKAO_REST_KEY = '15572497d330a96e5460225ce3ee3963'
-    const MIN_ADDRESS_LENGTH = 10
-    const MSG_ADDRESS_SHORT = '정확한 도로명 주소를 입력해주세요'
-    const MSG_ADDRESS_NO_LOT = '번지수까지 입력해주세요 (예: 풍무로 123)'
-    const MSG_ADDRESS_NOT_FOUND = '주소를 찾을 수 없어요. 도로명 주소로 다시 입력해주세요'
+    const KIMPO_CENTER = { x: 126.7, y: 37.62, radius: 5000 }
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
@@ -612,7 +634,9 @@
     let nearbyLeafletMap = null
     const nearbyStoreMarkers = new Map()
     let reportGeocode = null
-    let geocodeDebounceTimer = null
+    let placeSearchTimer = null
+    let placeSearchSeq = 0
+    let placeResultsCache = []
 
     const DRINK_TYPES = ['소주', '맥주', '막걸리']
 
@@ -1063,117 +1087,128 @@
       el.className = 'geo-status'
     }
 
-    function hasKakaoAddressFields(doc) {
-      return Boolean(doc?.road_address || doc?.address)
+    function hidePlaceSuggest() {
+      const ul = document.getElementById('place-suggest')
+      if (!ul) return
+      ul.hidden = true
+      ul.innerHTML = ''
+      placeResultsCache = []
     }
 
-    function lacksLotNumber(address) {
-      if (!/(로|길|대로)/.test(address)) return false
-      return !/(?:로|길|대로)\s*[\d]/.test(address)
-    }
+    async function searchPlacesKeyword(query) {
+      const url = new URL('https://dapi.kakao.com/v2/local/search/keyword.json')
+      url.searchParams.set('query', query)
+      url.searchParams.set('x', String(KIMPO_CENTER.x))
+      url.searchParams.set('y', String(KIMPO_CENTER.y))
+      url.searchParams.set('radius', String(KIMPO_CENTER.radius))
 
-    async function geocodeAddress(address) {
-      const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`
-      const res = await fetch(url, {
+      const res = await fetch(url.toString(), {
         headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` },
       })
 
-      if (!res.ok) throw new Error(`주소 검색 API 오류 (${res.status})`)
+      if (!res.ok) throw new Error(`키워드 검색 API 오류 (${res.status})`)
 
       const data = await res.json()
-      const documents = data.documents
-
-      if (!documents || documents.length === 0) {
-        return { success: false }
-      }
-
-      const doc = documents[0]
-      if (!hasKakaoAddressFields(doc)) {
-        return { success: false }
-      }
-
-      const lat = parseFloat(doc.y)
-      const lng = parseFloat(doc.x)
-      if (Number.isNaN(lat) || Number.isNaN(lng)) {
-        return { success: false }
-      }
-
-      return { success: true, lat, lng }
+      return data.documents || []
     }
 
-    async function verifyReportAddress() {
+    function renderPlaceSuggest(places) {
+      const ul = document.getElementById('place-suggest')
+      if (!ul) return
+
+      if (!places.length) {
+        ul.innerHTML = '<li class="place-suggest-empty">검색 결과가 없어요</li>'
+        ul.hidden = false
+        return
+      }
+
+      ul.innerHTML = places
+        .map((place, index) => {
+          const addr = place.road_address_name || place.address_name || ''
+          const cat = place.category_name || ''
+          return `
+            <li class="place-suggest-item" data-index="${index}" role="button" tabindex="0">
+              <span class="place-name">${esc(place.place_name || '')}</span>
+              <span class="place-addr">${esc(addr)}</span>
+              <span class="place-cat">${esc(cat)}</span>
+            </li>
+          `
+        })
+        .join('')
+
+      ul.hidden = false
+    }
+
+    function selectPlace(place) {
+      const nameInput = document.getElementById('r-name')
       const addrInput = document.getElementById('r-addr')
-      const btn = document.getElementById('btn-addr-check')
-      const address = addrInput?.value.trim()
 
-      if (!address) {
-        reportGeocode = null
-        setGeoStatus('fail', MSG_ADDRESS_SHORT)
-        return null
-      }
+      nameInput.value = place.place_name || ''
+      addrInput.value = place.road_address_name || place.address_name || ''
 
-      if (address.length < MIN_ADDRESS_LENGTH) {
-        reportGeocode = null
-        setGeoStatus('fail', MSG_ADDRESS_SHORT)
-        return null
-      }
-
-      if (lacksLotNumber(address)) {
-        reportGeocode = null
-        setGeoStatus('fail', MSG_ADDRESS_NO_LOT)
-        return null
-      }
-
-      btn.disabled = true
-      setGeoStatus('pending', '주소 검색 중…')
-
-      try {
-        const result = await geocodeAddress(address)
-        if (!result.success) {
-          reportGeocode = null
-          setGeoStatus('fail', MSG_ADDRESS_NOT_FOUND)
-          return null
-        }
-
-        reportGeocode = { lat: result.lat, lng: result.lng }
+      const lat = parseFloat(place.y)
+      const lng = parseFloat(place.x)
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        reportGeocode = { lat, lng }
         setGeoStatus('ok', '📍 위치 확인됨')
-        return reportGeocode
-      } catch {
+      } else {
         reportGeocode = null
-        setGeoStatus('fail', MSG_ADDRESS_NOT_FOUND)
-        return null
-      } finally {
-        btn.disabled = false
+        clearGeoStatus()
       }
+
+      hidePlaceSuggest()
     }
 
-    document.getElementById('btn-addr-check')?.addEventListener('click', () => {
-      clearTimeout(geocodeDebounceTimer)
-      verifyReportAddress()
+    document.getElementById('r-name')?.addEventListener('input', (e) => {
+      const query = e.target.value.trim()
+      reportGeocode = null
+      clearGeoStatus()
+      clearTimeout(placeSearchTimer)
+      document.getElementById('r-addr').value = ''
+
+      if (!query) {
+        hidePlaceSuggest()
+        return
+      }
+
+      if (query.length < 2) {
+        hidePlaceSuggest()
+        return
+      }
+
+      const seq = ++placeSearchSeq
+      placeSearchTimer = setTimeout(async () => {
+        try {
+          const places = await searchPlacesKeyword(query)
+          if (seq !== placeSearchSeq) return
+          placeResultsCache = places
+          renderPlaceSuggest(places)
+        } catch {
+          if (seq !== placeSearchSeq) return
+          placeResultsCache = []
+          renderPlaceSuggest([])
+        }
+      }, 300)
     })
 
-    document.getElementById('r-addr')?.addEventListener('input', () => {
-      reportGeocode = null
-      clearTimeout(geocodeDebounceTimer)
+    document.getElementById('place-suggest')?.addEventListener('click', (e) => {
+      const item = e.target.closest('.place-suggest-item')
+      if (!item) return
+      const index = parseInt(item.dataset.index, 10)
+      if (placeResultsCache[index]) selectPlace(placeResultsCache[index])
+    })
 
-      const address = document.getElementById('r-addr')?.value.trim() || ''
-      if (!address) {
-        clearGeoStatus()
-        return
-      }
+    document.getElementById('place-suggest')?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      const item = e.target.closest('.place-suggest-item')
+      if (!item) return
+      e.preventDefault()
+      const index = parseInt(item.dataset.index, 10)
+      if (placeResultsCache[index]) selectPlace(placeResultsCache[index])
+    })
 
-      if (address.length < MIN_ADDRESS_LENGTH) {
-        setGeoStatus('fail', MSG_ADDRESS_SHORT)
-        return
-      }
-
-      if (lacksLotNumber(address)) {
-        setGeoStatus('fail', MSG_ADDRESS_NO_LOT)
-        return
-      }
-
-      setGeoStatus('pending', '주소 검색 중…')
-      geocodeDebounceTimer = setTimeout(() => verifyReportAddress(), 700)
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.place-search-field')) hidePlaceSuggest()
     })
 
     function collectReportRows(form) {
@@ -1233,11 +1268,8 @@
       const success = document.getElementById('report-success')
 
       if (!reportGeocode) {
-        const coords = await verifyReportAddress()
-        if (!coords) {
-          alert('도로명 주소를 입력한 뒤 「주소 확인」으로 위치를 확인해주세요.')
-          return
-        }
+        alert('가게 이름을 검색한 뒤 목록에서 가게를 선택해주세요.')
+        return
       }
 
       const collected = collectReportRows(form)
@@ -1262,6 +1294,7 @@
       form.reset()
       resetDrinkRows()
       clearGeoStatus()
+      hidePlaceSuggest()
       form.style.display = 'none'
       success.classList.add('show')
 
