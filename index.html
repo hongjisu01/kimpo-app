@@ -161,6 +161,7 @@
     .ios-guide-box h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.85rem; }
     .ios-guide-box ol { text-align: left; font-size: 0.92rem; line-height: 2; padding-left: 1.2rem; color: var(--text); margin: 0.5rem 0; }
     .ios-guide-box .ios-sub { font-size: 0.78rem; color: var(--muted); }
+    .ios-guide-box .guide-intro { display: inline-block; font-size: 0.78rem; font-weight: 700; color: var(--primary-dark); background: var(--primary-soft); padding: 0.25rem 0.7rem; border-radius: 999px; margin-bottom: 0.5rem; }
     .ios-warn { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; border-radius: 10px; padding: 0.75rem 0.85rem; font-size: 0.82rem; line-height: 1.5; text-align: left; margin-bottom: 1rem; }
     .ios-guide-box .share-ico { display: inline-block; vertical-align: middle; }
     .ios-guide-box button { margin-top: 1.2rem; width: 100%; padding: 0.7rem; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
@@ -328,9 +329,10 @@
     function showGuide(html) { document.getElementById('guide-body').innerHTML = html; document.getElementById('ios-guide').classList.add('show') }
     installBtn?.addEventListener('click', async () => {
       if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') { installBtn.hidden = true; showToast('🍻 설치됐어요!') } deferredPrompt = null; return }
-      if (isInApp) { showGuide('<div class="ios-warn">⚠️ 카톡·인스타 안에서는 추가가 안 돼요.<br>우측 메뉴 → <strong>"다른 브라우저로 열기"</strong> 후 다시 시도하세요.</div>') }
-      else if (isIOS) { showGuide('<ol><li>하단 <strong>공유</strong> <span class="share-ico">⬆️</span> 누르기</li><li><strong>"홈 화면에 추가"</strong> 탭</li><li><strong>"추가"</strong> 누르면 끝! 🎉</li></ol>') }
-      else { showGuide('<ol><li>우측 위 <strong>⋮</strong> 메뉴 누르기</li><li><strong>"홈 화면에 추가"</strong> 탭</li><li><strong>"설치"</strong> 누르면 끝! 🎉</li></ol>') }
+      if (isInApp && isIOS) { showGuide('<div class="ios-warn">⚠️ 지금 <strong>카톡 등 앱 안</strong>이라 추가가 안 돼요.<br><br>오른쪽 위 <strong>···</strong> → <strong>"Safari로 열기"</strong> 를 누른 뒤,<br>사파리에서 다시 이 버튼을 눌러주세요.</div>') }
+      else if (isInApp) { showGuide('<div class="ios-warn">⚠️ 지금 <strong>카톡 등 앱 안</strong>이라 추가가 안 돼요.<br><br>오른쪽 위 <strong>⋮</strong> → <strong>"다른 브라우저로 열기"</strong> 를 누른 뒤,<br>크롬에서 다시 이 버튼을 눌러주세요.</div>') }
+      else if (isIOS) { showGuide('<p class="guide-intro">아이폰 · Safari</p><ol><li>화면 <strong>맨 아래 가운데</strong>의 <strong>공유 버튼</strong> <span class="share-ico">⬆️</span> 을 누르세요</li><li>목록을 내려서 <strong>"홈 화면에 추가"</strong> 를 누르세요</li><li>오른쪽 위 <strong>"추가"</strong> 를 누르면 끝! 🎉</li></ol>') }
+      else { showGuide('<p class="guide-intro">안드로이드 · Chrome</p><ol><li>오른쪽 위 <strong>⋮</strong> (점 세 개) 를 누르세요</li><li><strong>"홈 화면에 추가"</strong> 또는 <strong>"앱 설치"</strong> 를 누르세요</li><li><strong>"설치"</strong> 를 누르면 끝! 🎉</li></ol>') }
     })
     window.addEventListener('appinstalled', () => { installBtn.hidden = true; deferredPrompt = null })
 
