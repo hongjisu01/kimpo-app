@@ -404,6 +404,7 @@
     <!-- 탭 -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('stores', this)">가게 관리</button>
+      <button class="tab-btn" onclick="switchTab('pending', this)">⏳ 승인 대기</button>
       <button class="tab-btn" onclick="switchTab('deals', this)">할인 정보</button>
       <button class="tab-btn" onclick="switchTab('reports', this)">제보 관리</button>
       <button class="tab-btn" onclick="switchTab('add-store', this)">가게 추가</button>
@@ -418,6 +419,19 @@
         </div>
         <div class="overflow-x">
           <div id="stores-table"><div class="spinner"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 승인 대기 -->
+    <div class="tab-panel" id="tab-pending">
+      <div class="section-card">
+        <div class="section-head">
+          <h2>⏳ 승인 대기 (직접입력 제보)</h2>
+          <span class="count" id="pending-count">-</span>
+        </div>
+        <div class="overflow-x">
+          <div id="pending-table"><div class="spinner"></div></div>
         </div>
       </div>
     </div>
@@ -549,7 +563,6 @@
   })
 
 
-  const { createClient } = window.supabase
   const db = createClient(SUPABASE_URL, SUPABASE_KEY)
 
   function doLogin() {
@@ -607,12 +620,46 @@
     document.getElementById('stat-reports').textContent = pending
   }
 
+  let pendingData = []
   async function loadStores() {
     const { data, error } = await db.from('stores').select('*').order('created_at', { ascending: false })
     if (error) { document.getElementById('stores-table').innerHTML = `<p class="empty">오류: ${error.message}</p>`; return }
-    storesData = data || []
+    const all = data || []
+    storesData = all.filter(s => s.is_approved !== false)
+    pendingData = all.filter(s => s.is_approved === false)
     document.getElementById('stores-count').textContent = `${storesData.length}개`
+    const pc = document.getElementById('pending-count'); if (pc) pc.textContent = `${pendingData.length}개`
     renderStores()
+    renderPending()
+  }
+
+  function renderPending() {
+    const el = document.getElementById('pending-table'); if (!el) return
+    if (!pendingData.length) { el.innerHTML = '<p class="empty">승인 대기 중인 가게가 없습니다.</p>'; return }
+    el.innerHTML = `
+      <table class="data-table">
+        <thead><tr><th>가게이름</th><th>주소</th><th>좌표</th><th>처리</th></tr></thead>
+        <tbody>
+          ${pendingData.map(s => `
+            <tr>
+              <td><strong>${s.name || '-'}</strong></td>
+              <td>${s.address || '-'}</td>
+              <td style="font-size:0.75rem; color:var(--muted)">${s.lat ? `${Number(s.lat).toFixed(4)}, ${Number(s.lng).toFixed(4)}` : '없음'}</td>
+              <td style="white-space:nowrap">
+                <button class="confirm-btn" onclick="approveStore('${s.id}')">✓ 승인</button>
+                <button class="del-btn" onclick="deleteStore('${s.id}', '${(s.name||'').replace(/'/g,"\\'")}')">거절</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `
+  }
+
+  async function approveStore(id) {
+    const { error } = await db.from('stores').update({ is_approved: true }).eq('id', id)
+    if (error) { alert('승인 실패: ' + error.message); return }
+    await loadAll()
   }
 
   function renderStores() {
