@@ -4,23 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>술싸</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    :root {
-      --primary: #1D9E75;
-      --primary-dark: #178a66;
-      --primary-soft: #e8f7f1;
-      --bg: #f5f7f6;
-      --card: #fff;
-      --text: #1a1f1c;
-      --muted: #6b7280;
-      --border: #e5ebe8;
-      --danger: #dc2626;
-      --tab-h: 64px;
-      --safe-b: env(safe-area-inset-bottom, 0px);
-    }
+    :root { --primary: #1D9E75; --primary-dark: #178a66; --primary-soft: #e8f7f1; --bg: #f5f7f6; --card: #fff; --text: #1a1f1c; --muted: #6b7280; --border: #e5ebe8; --danger: #dc2626; --tab-h: 64px; --safe-b: env(safe-area-inset-bottom, 0px); }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100dvh; }
     .app { max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); box-shadow: 0 0 40px rgba(0,0,0,0.06); }
@@ -28,15 +14,12 @@
     .topbar h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
     .topbar p { font-size: 0.78rem; opacity: 0.9; margin-top: 0.15rem; }
     main { flex: 1; overflow-y: auto; padding: 1rem 1rem calc(var(--tab-h) + var(--safe-b) + 1rem); }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .filters { display: flex; gap: 0.45rem; overflow-x: auto; padding-bottom: 0.25rem; margin-bottom: 1rem; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .panel { display: none; } .panel.active { display: block; }
+    .filters { display: flex; gap: 0.45rem; overflow-x: auto; padding-bottom: 0.25rem; margin-bottom: 1rem; scrollbar-width: none; }
     .filters::-webkit-scrollbar { display: none; }
     .filter-btn { flex-shrink: 0; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 0.82rem; font-weight: 600; padding: 0.45rem 0.85rem; border-radius: 999px; cursor: pointer; transition: all 0.15s; }
     .filter-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
     .card-list { display: flex; flex-direction: column; gap: 0.75rem; }
-
-    /* 가게 카드 */
     .store-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.05rem; }
     .store-card.clickable { cursor: pointer; transition: box-shadow 0.15s; }
     .store-card.clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
@@ -48,38 +31,28 @@
     .store-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 0.65rem; }
     .share-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem 0.7rem; font-size: 0.78rem; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 0.3rem; }
     .share-btn:hover { background: var(--bg); }
-
-    /* 해피아워 타이머 */
     .happy-now { display: inline-flex; align-items: center; gap: 0.3rem; background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 8px; padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.5rem; }
     .happy-dot { width: 6px; height: 6px; background: #f59e0b; border-radius: 50%; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
     .happy-end { display: inline-flex; align-items: center; gap: 0.3rem; background: #f3f4f6; color: var(--muted); border-radius: 8px; padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 600; margin-bottom: 0.5rem; }
-
-    /* 상세 모달 */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
     .modal-overlay.show { display: flex; }
     .modal-box { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; padding: 1.5rem 1.25rem calc(1.5rem + var(--safe-b)); max-height: 85vh; overflow-y: auto; }
     .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 1.25rem; }
     .modal-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.35rem; }
     .modal-addr { font-size: 0.88rem; color: var(--muted); margin-bottom: 1rem; }
-    .modal-section-title { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin: 1rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .modal-section-title { font-size: 0.8rem; font-weight: 700; color: var(--muted); margin: 1rem 0 0.5rem; }
     .modal-deal-row { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 0; border-bottom: 1px solid var(--border); }
     .modal-deal-row:last-child { border-bottom: none; }
     .modal-deal-type { font-weight: 600; font-size: 0.95rem; }
     .modal-deal-price { font-size: 1rem; font-weight: 700; color: var(--danger); }
     .modal-close { width: 100%; margin-top: 1.25rem; padding: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
     .modal-share-btn { width: 100%; margin-top: 0.65rem; padding: 0.85rem; background: #FEE500; border: none; border-radius: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; color: #3C1E1E; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
-
-    /* 검색바 */
     .search-wrap { position: relative; margin-bottom: 0.85rem; }
     .search-input { width: 100%; padding: 0.65rem 1rem 0.65rem 2.5rem; border: 1px solid var(--border); border-radius: 12px; font-size: 0.9rem; font-family: inherit; background: var(--card); }
     .search-input:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
     .search-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1rem; pointer-events: none; }
-
-    .nearby-map { width: 100%; height: 250px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 1rem; background: #e5ebe8; z-index: 1; }
-    .map-popup-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.25rem; }
-    .map-popup-addr { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem; line-height: 1.35; }
-    .map-popup-deal { font-size: 0.8rem; color: #c2410c; font-weight: 600; line-height: 1.4; }
+    .nearby-map { width: 100%; height: 260px; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 1rem; background: #e5ebe8; }
     .nearby-section-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.65rem; color: var(--text); }
     .badges { display: flex; flex-wrap: wrap; gap: 0.35rem; }
     .badge { font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 6px; }
@@ -90,27 +63,21 @@
     .status-box.error { color: var(--danger); background: #fef2f2; border-radius: 12px; border: 1px solid #fecaca; }
     .spinner { width: 32px; height: 32px; margin: 0 auto 0.75rem; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* 제보 폼 */
     .form-title { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; }
     .field { margin-bottom: 0.85rem; }
     .field label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text); }
     .field label .opt { font-weight: 400; color: var(--muted); }
     .field input, .field select, .field textarea { width: 100%; padding: 0.65rem 0.75rem; border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; font-family: inherit; background: var(--card); }
     .field textarea { min-height: 80px; resize: vertical; }
-    .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
+    .field input:focus, .field textarea:focus { outline: 2px solid var(--primary-soft); border-color: var(--primary); }
     .btn-submit { width: 100%; margin-top: 0.5rem; padding: 0.85rem; background: var(--primary); color: #fff; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; }
     .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
     .toast-success { display: none; text-align: center; padding: 2rem 1rem; background: var(--primary-soft); border-radius: 14px; color: var(--primary-dark); font-weight: 600; font-size: 1rem; }
     .toast-success.show { display: block; }
-
-    /* 탭바 */
     .tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; height: calc(var(--tab-h) + var(--safe-b)); padding-bottom: var(--safe-b); background: var(--card); border-top: 1px solid var(--border); display: flex; z-index: 100; }
     .tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; border: none; background: none; color: var(--muted); font-size: 0.68rem; font-weight: 600; cursor: pointer; padding: 0.4rem; }
     .tab-btn .ico { font-size: 1.25rem; line-height: 1; }
     .tab-btn.active { color: var(--primary); }
-
-    /* 음료 선택 */
     .drink-rows { display: flex; flex-direction: column; gap: 0.55rem; }
     .drink-row { display: flex; align-items: center; gap: 0.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.65rem; }
     .drink-row:has(input[type="checkbox"]:checked) { border-color: var(--primary); background: var(--primary-soft); }
@@ -128,36 +95,30 @@
     .place-suggest { list-style: none; margin-top: 0.35rem; border: 1px solid var(--border); border-radius: 10px; background: var(--card); max-height: 240px; overflow-y: auto; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
     .place-suggest-item { padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--border); cursor: pointer; }
     .place-suggest-item:last-child { border-bottom: none; }
-    .place-suggest-item:hover, .place-suggest-item:focus { background: var(--primary-soft); outline: none; }
+    .place-suggest-item:hover { background: var(--primary-soft); }
     .place-suggest-item .place-name { display: block; font-weight: 700; font-size: 0.9rem; }
-    .place-suggest-item .place-addr { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; line-height: 1.35; }
+    .place-suggest-item .place-addr { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
     .place-suggest-item .place-cat { display: block; font-size: 0.72rem; color: var(--primary-dark); margin-top: 0.2rem; }
     .place-suggest-empty { padding: 0.9rem; text-align: center; color: var(--muted); font-size: 0.85rem; }
     #r-addr[readonly] { background: #f3f4f6; color: var(--text); }
     .geo-status { font-size: 0.82rem; margin-top: 0.4rem; font-weight: 600; }
     .geo-status.ok { color: var(--primary-dark); }
     .geo-status.fail { color: var(--danger); }
-    .geo-status.pending { color: var(--muted); }
-
-    /* 토스트 */
     .toast { position: fixed; bottom: calc(var(--tab-h) + var(--safe-b) + 1rem); left: 50%; transform: translateX(-50%); background: #1a1f1c; color: #fff; padding: 0.65rem 1.25rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
     .toast.show { opacity: 1; }
+    .kakao-overlay { background: #fff; border-radius: 10px; padding: 7px 11px; box-shadow: 0 2px 12px rgba(0,0,0,0.18); border: 1.5px solid var(--primary); font-size: 12px; min-width: 110px; cursor: pointer; position: relative; }
+    .kakao-overlay::after { content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); border: 8px solid transparent; border-top-color: var(--primary); border-bottom: none; }
+    .kakao-overlay .ov-name { font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .kakao-overlay .ov-deal { color: #c2410c; font-weight: 600; }
+    .my-location-marker { width: 18px; height: 18px; background: #2563eb; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(37,99,235,0.4); }
   </style>
 </head>
 <body>
   <div class="app">
-    <header class="topbar">
-      <h1>술싸</h1>
-      <p>김포 술 할인 정보</p>
-    </header>
-
+    <header class="topbar"><h1>술싸</h1><p>김포 술 할인 정보</p></header>
     <main>
-      <!-- 홈 -->
       <section id="panel-home" class="panel active">
-        <div class="search-wrap">
-          <span class="search-icon">🔍</span>
-          <input type="text" class="search-input" id="search-input" placeholder="가게 이름 검색..." />
-        </div>
+        <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input" id="search-input" placeholder="가게 이름 검색..." /></div>
         <div class="filters" id="filters">
           <button type="button" class="filter-btn active" data-filter="전체">전체</button>
           <button type="button" class="filter-btn" data-filter="소주">🍶 소주</button>
@@ -165,84 +126,37 @@
           <button type="button" class="filter-btn" data-filter="막걸리">🌾 막걸리</button>
           <button type="button" class="filter-btn" data-filter="해피아워">⏰ 해피아워</button>
         </div>
-        <div id="home-content">
-          <div class="status-box">
-            <div class="spinner"></div>
-            <p>가게 정보를 불러오는 중…</p>
-          </div>
-        </div>
+        <div id="home-content"><div class="status-box"><div class="spinner"></div><p>가게 정보를 불러오는 중…</p></div></div>
       </section>
-
-      <!-- 제보하기 -->
       <section id="panel-report" class="panel">
         <p class="form-title">할인 정보 제보</p>
         <div id="report-success" class="toast-success">제보해주셔서 감사합니다! 🎉</div>
         <form id="report-form">
-          <div class="field place-search-field">
-            <label for="r-name">가게이름</label>
-            <input id="r-name" name="가게이름" type="text" required placeholder="가게 이름을 검색하세요" autocomplete="off" />
-            <ul id="place-suggest" class="place-suggest" hidden></ul>
-          </div>
-          <div class="field">
-            <label for="r-addr">주소</label>
-            <input id="r-addr" name="주소" type="text" required readonly placeholder="검색 결과에서 가게를 선택하세요" />
-            <p id="geo-status" class="geo-status" hidden></p>
-          </div>
-          <div class="field">
-            <label>술종류 및 할인가격</label>
+          <div class="field place-search-field"><label for="r-name">가게이름</label><input id="r-name" name="가게이름" type="text" required placeholder="가게 이름을 검색하세요" autocomplete="off" /><ul id="place-suggest" class="place-suggest" hidden></ul></div>
+          <div class="field"><label for="r-addr">주소</label><input id="r-addr" name="주소" type="text" required readonly placeholder="검색 결과에서 가게를 선택하세요" /><p id="geo-status" class="geo-status" hidden></p></div>
+          <div class="field"><label>술종류 및 할인가격</label>
             <div class="drink-rows" id="drink-rows">
-              <div class="drink-row">
-                <label class="drink-check"><input type="checkbox" data-drink="소주" /><span>🍶 소주</span></label>
-                <div class="price-input-wrap"><input type="text" class="drink-price" data-drink="소주" inputmode="numeric" placeholder="예: 2500" disabled /><span class="price-unit">원</span></div>
-              </div>
-              <div class="drink-row">
-                <label class="drink-check"><input type="checkbox" data-drink="맥주" /><span>🍺 맥주</span></label>
-                <div class="price-input-wrap"><input type="text" class="drink-price" data-drink="맥주" inputmode="numeric" placeholder="예: 2500" disabled /><span class="price-unit">원</span></div>
-              </div>
-              <div class="drink-row">
-                <label class="drink-check"><input type="checkbox" data-drink="막걸리" /><span>🌾 막걸리</span></label>
-                <div class="price-input-wrap"><input type="text" class="drink-price" data-drink="막걸리" inputmode="numeric" placeholder="예: 2500" disabled /><span class="price-unit">원</span></div>
-              </div>
+              <div class="drink-row"><label class="drink-check"><input type="checkbox" data-drink="소주" /><span>🍶 소주</span></label><div class="price-input-wrap"><input type="text" class="drink-price" data-drink="소주" inputmode="numeric" placeholder="예: 2500" disabled /><span class="price-unit">원</span></div></div>
+              <div class="drink-row"><label class="drink-check"><input type="checkbox" data-drink="맥주" /><span>🍺 맥주</span></label><div class="price-input-wrap"><input type="text" class="drink-price" data-drink="맥주" inputmode="numeric" placeholder="예: 2500" disabled /><span class="price-unit">원</span></div></div>
+              <div class="drink-row"><label class="drink-check"><input type="checkbox" data-drink="막걸리" /><span>🌾 막걸리</span></label><div class="price-input-wrap"><input type="text" class="drink-price" data-drink="막걸리" inputmode="numeric" placeholder="예: 2500" disabled /><span class="price-unit">원</span></div></div>
             </div>
           </div>
-          <div class="field">
-            <label for="r-happy">해피아워 시간 <span class="opt">(선택)</span></label>
-            <input id="r-happy" name="해피아워시간" type="text" placeholder="예: 17:00~19:00" />
-          </div>
-          <div class="field">
-            <label for="r-memo">메모 <span class="opt">(선택)</span></label>
-            <textarea id="r-memo" name="메모" placeholder="추가 정보를 적어주세요"></textarea>
-          </div>
+          <div class="field"><label for="r-happy">해피아워 시간 <span class="opt">(선택)</span></label><input id="r-happy" name="해피아워시간" type="text" placeholder="예: 17:00~19:00" /></div>
+          <div class="field"><label for="r-memo">메모 <span class="opt">(선택)</span></label><textarea id="r-memo" name="메모" placeholder="추가 정보를 적어주세요"></textarea></div>
           <button type="submit" class="btn-submit" id="btn-report">제보하기</button>
         </form>
       </section>
-
-      <!-- 내 주변 -->
-      <section id="panel-nearby" class="panel">
-        <div id="nearby-content">
-          <div class="status-box"><p>내 주변 탭을 누르면 가까운 가게를 보여드려요.</p></div>
-        </div>
-      </section>
+      <section id="panel-nearby" class="panel"><div id="nearby-content"><div class="status-box"><p>내 주변 탭을 누르면 가까운 가게를 보여드려요.</p></div></div></section>
     </main>
-
-    <nav class="tabbar" aria-label="메인 메뉴">
+    <nav class="tabbar">
       <button type="button" class="tab-btn active" data-tab="home"><span class="ico">🏠</span><span>홈</span></button>
       <button type="button" class="tab-btn" data-tab="report"><span class="ico">✏️</span><span>제보하기</span></button>
       <button type="button" class="tab-btn" data-tab="nearby"><span class="ico">📍</span><span>내 주변</span></button>
     </nav>
   </div>
-
-  <!-- 상세 모달 -->
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal-box" id="modal-box">
-      <div class="modal-handle"></div>
-      <div id="modal-content"></div>
-    </div>
-  </div>
-
-  <!-- 토스트 -->
+  <div class="modal-overlay" id="modal-overlay"><div class="modal-box"><div class="modal-handle"></div><div id="modal-content"></div></div></div>
   <div class="toast" id="toast"></div>
-
+  <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=006a0f6a0626dc06f75b66d845c5f920&autoload=false"></script>
   <script>
     const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNtdXdqdXV2YXR1aG1xb2hmbmdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNjgzNzMsImV4cCI6MjA5NTg0NDM3M30.JcnU-wXdE_v1SFs8Ucs0Tf_tSmTQ_x1XGpesw0Kdml0'
@@ -250,487 +164,67 @@
     const KIMPO_CENTER = { x: 126.7, y: 37.62, radius: 5000 }
     const { createClient } = supabase
     const db = createClient(SUPABASE_URL, SUPABASE_KEY)
-
-    let stores = []
-    let deals = []
-    let currentFilter = '전체'
-    let searchQuery = ''
-    let nearbyLeafletMap = null
-    const nearbyStoreMarkers = new Map()
-    let reportGeocode = null
-    let placeSearchTimer = null
-    let placeSearchSeq = 0
-    let placeResultsCache = []
+    let stores = [], deals = [], currentFilter = '전체', searchQuery = ''
+    let kakaoMap = null, kakaoOverlays = []
+    let reportGeocode = null, placeSearchTimer = null, placeSearchSeq = 0, placeResultsCache = []
     const DRINK_TYPES = ['소주', '맥주', '막걸리']
-
-    // 토스트
-    function showToast(msg) {
-      const el = document.getElementById('toast')
-      el.textContent = msg
-      el.classList.add('show')
-      setTimeout(() => el.classList.remove('show'), 2200)
-    }
-
-    function pick(row, ...keys) {
-      for (const k of keys) { const v = row[k]; if (v != null && String(v).trim() !== '') return v }
-      return null
-    }
+    function showToast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200) }
+    function pick(row, ...keys) { for (const k of keys) { const v = row[k]; if (v != null && String(v).trim() !== '') return v } return null }
     function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML }
     function storeId(row) { return pick(row, 'id', 'store_id') }
-    function dealStoreId(deal) { return pick(deal, 'store_id', '가게_id', 'stores_id') }
-    function dealType(deal) { return pick(deal, '술종류', 'drink_type', 'type', 'category') }
-    function dealPrice(deal) { return pick(deal, 'sale_price', '할인가격', 'price', 'discount_price') }
-    function dealHappy(deal) { return pick(deal, '해피아워시간', 'happy_hour', 'happy_hour_time') }
-
-    function formatPrice(price) {
-      if (price == null || price === '') return ''
-      if (typeof price === 'number' && !Number.isNaN(price)) return price.toLocaleString('ko-KR') + '원'
-      const s = String(price).trim()
-      if (!s) return ''
-      if (s.includes('원')) return s
-      const num = s.replace(/[^\d]/g, '')
-      if (num) return Number(num).toLocaleString('ko-KR') + '원'
-      return s
-    }
-
-    function sanitizePriceInput(input) { const digits = input.value.replace(/[^\d]/g, ''); if (input.value !== digits) input.value = digits }
-    function parsePriceToInt(value) { const num = parseInt(String(value).replace(/[^\d]/g, ''), 10); return Number.isNaN(num) ? null : num }
-    function getDealsForStore(id) { return deals.filter((d) => String(dealStoreId(d)) === String(id)) }
-    function isHappyHourDeal(deal) { const t = dealHappy(deal); return t != null && String(t).trim() !== '' }
-    function matchFilter(deal, filter) {
-      if (filter === '전체') return true
-      if (filter === '해피아워') return isHappyHourDeal(deal)
-      return dealType(deal) === filter
-    }
-    function filteredDealsForStore(store, filter) { const id = storeId(store); return getDealsForStore(id).filter((d) => matchFilter(d, filter)) }
-    function storeVisible(store, filter) { if (filter === '전체') return true; return filteredDealsForStore(store, filter).length > 0 }
-
-    // 해피아워 체크
-    function parseHappyHour(str) {
-      if (!str) return null
-      const m = str.match(/(\d{1,2}):(\d{2})[~\-~](\d{1,2}):(\d{2})/)
-      if (!m) return null
-      return { startH: +m[1], startM: +m[2], endH: +m[3], endM: +m[4] }
-    }
-
-    function isHappyHourNow(deal) {
-      const happy = dealHappy(deal)
-      if (!happy) return false
-      const parsed = parseHappyHour(happy)
-      if (!parsed) return false
-      const now = new Date()
-      const nowMin = now.getHours() * 60 + now.getMinutes()
-      const startMin = parsed.startH * 60 + parsed.startM
-      const endMin = parsed.endH * 60 + parsed.endM
-      return nowMin >= startMin && nowMin <= endMin
-    }
-
-    function getHappyHourStatus(storeDeals) {
-      const happyDeals = storeDeals.filter(isHappyHourDeal)
-      if (!happyDeals.length) return null
-      const nowActive = happyDeals.some(isHappyHourNow)
-      if (nowActive) {
-        const happy = dealHappy(happyDeals[0])
-        const parsed = parseHappyHour(happy)
-        if (parsed) {
-          const now = new Date()
-          const nowMin = now.getHours() * 60 + now.getMinutes()
-          const endMin = parsed.endH * 60 + parsed.endM
-          const remaining = endMin - nowMin
-          return { active: true, remaining }
-        }
-        return { active: true, remaining: null }
-      }
-      return { active: false, timeStr: dealHappy(happyDeals[0]) }
-    }
-
-    function renderHappyBadge(storeDeals) {
-      const status = getHappyHourStatus(storeDeals)
-      if (!status) return ''
-      if (status.active) {
-        const rem = status.remaining != null ? ` (${status.remaining}분 남음)` : ''
-        return `<div class="happy-now"><span class="happy-dot"></span>해피아워 진행중${rem}</div>`
-      }
-      return `<div class="happy-end">⏰ 해피아워 ${esc(status.timeStr)}</div>`
-    }
-
-    function renderDealBadge(deal) {
-      const type = dealType(deal); const priceText = formatPrice(dealPrice(deal)); const happy = dealHappy(deal)
-      if (!type) return ''
-      const label = priceText ? `${type} ${priceText}` : type
-      let html = `<span class="badge badge-deal">${esc(label)}</span>`
-      if (happy && currentFilter === '해피아워') html += `<span class="badge badge-happy">⏰ ${esc(happy)}</span>`
-      else if (happy && currentFilter === '전체' && isHappyHourDeal(deal)) html += `<span class="badge badge-happy">해피 ${esc(happy)}</span>`
-      return html
-    }
-
-    function renderStoreDealBadges(id) {
-      return getDealsForStore(id).map((deal) => {
-        const type = dealType(deal); const priceText = formatPrice(dealPrice(deal))
-        if (!type) return ''
-        const label = priceText ? `${type} ${priceText}` : type
-        let html = `<span class="badge badge-deal">${esc(label)}</span>`
-        const happy = dealHappy(deal)
-        if (happy && isHappyHourDeal(deal)) html += `<span class="badge badge-happy">해피 ${esc(happy)}</span>`
-        return html
-      }).filter(Boolean).join('')
-    }
-
-    function storeCoords(store) {
-      const la = parseFloat(store?.lat ?? pick(store, 'latitude', '위도'))
-      const lo = parseFloat(store?.lng ?? pick(store, 'longitude', '경도', 'lon'))
-      if (Number.isNaN(la) || Number.isNaN(lo)) return null
-      return { lat: la, lng: lo }
-    }
-
-    function haversineKm(lat1, lon1, lat2, lon2) {
-      const R = 6371; const toRad = (d) => (d * Math.PI) / 180
-      const dLat = toRad(lat2 - lat1); const dLon = toRad(lon2 - lon1)
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    }
-
-    function formatDistance(km) { if (km < 1) return `${Math.round(km * 1000)}m`; return `${km.toFixed(1)}km` }
-
-    // 카카오톡 공유
-    function shareKakao(store) {
-      const name = pick(store, 'name', 'store_name') || '가게'
-      const addr = pick(store, 'address') || ''
-      const id = storeId(store)
-      const storeDeals = getDealsForStore(id)
-      const dealText = storeDeals.map(d => {
-        const t = dealType(d); const p = formatPrice(dealPrice(d))
-        return t && p ? `${t} ${p}` : t || ''
-      }).filter(Boolean).join(' / ')
-
-      const text = `🍺 술싸 - 김포 술 할인 정보\n\n📍 ${name}\n${addr}${dealText ? '\n\n💰 ' + dealText : ''}\n\n👉 https://kimpo-app.vercel.app`
-
-      if (navigator.share) {
-        navigator.share({ title: `술싸 - ${name}`, text, url: 'https://kimpo-app.vercel.app' })
-          .catch(() => {})
-      } else {
-        navigator.clipboard.writeText(text).then(() => showToast('📋 링크가 복사됐어요!')).catch(() => {
-          showToast('🍺 kimpo-app.vercel.app')
-        })
-      }
-    }
-
-    // 상세 모달
-    function openModal(store) {
-      const id = storeId(store)
-      const name = pick(store, 'name', 'store_name') || '이름 없음'
-      const addr = pick(store, 'address') || '—'
-      const cat = pick(store, 'category') || ''
-      const storeDeals = getDealsForStore(id)
-      const happyBadge = renderHappyBadge(storeDeals)
-
-      const dealRows = storeDeals.map(d => {
-        const type = dealType(d); const price = formatPrice(dealPrice(d)); const happy = dealHappy(d)
-        const nowActive = isHappyHourNow(d)
-        return `
-          <div class="modal-deal-row">
-            <span class="modal-deal-type">${esc(type || '-')}</span>
-            <div style="text-align:right">
-              <div class="modal-deal-price">${esc(price || '-')}</div>
-              ${happy ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">${nowActive ? '⏰ 지금 해피아워!' : '⏰ ' + esc(happy)}</div>` : ''}
-            </div>
-          </div>
-        `
-      }).join('')
-
-      document.getElementById('modal-content').innerHTML = `
-        ${happyBadge}
-        <div class="modal-name">${esc(name)}</div>
-        <div class="modal-addr">📍 ${esc(addr)}</div>
-        ${cat ? `<div style="margin-bottom:0.5rem"><span class="badge badge-cat">${esc(cat)}</span></div>` : ''}
-        <div class="modal-section-title">할인 정보</div>
-        <div>${dealRows || '<p style="color:var(--muted);font-size:0.9rem;padding:0.5rem 0">등록된 할인 정보가 없습니다.</p>'}</div>
-        <button class="modal-share-btn" onclick="shareKakao(currentModalStore)">
-          💬 카카오톡으로 공유하기
-        </button>
-        <button class="modal-close" onclick="closeModal()">닫기</button>
-      `
-      window.currentModalStore = store
-      document.getElementById('modal-overlay').classList.add('show')
-    }
-
+    function dealStoreId(d) { return pick(d, 'store_id') }
+    function dealType(d) { return pick(d, '술종류', 'drink_type') }
+    function dealPrice(d) { return pick(d, 'sale_price', '할인가격') }
+    function dealHappy(d) { return pick(d, '해피아워시간', 'happy_hour') }
+    function formatPrice(price) { if (price == null || price === '') return ''; if (typeof price === 'number') return price.toLocaleString('ko-KR') + '원'; const num = String(price).replace(/[^\d]/g, ''); return num ? Number(num).toLocaleString('ko-KR') + '원' : String(price) }
+    function sanitizePriceInput(input) { const d = input.value.replace(/[^\d]/g, ''); if (input.value !== d) input.value = d }
+    function parsePriceToInt(v) { const n = parseInt(String(v).replace(/[^\d]/g, ''), 10); return isNaN(n) ? null : n }
+    function getDealsForStore(id) { return deals.filter(d => String(dealStoreId(d)) === String(id)) }
+    function isHappyHourDeal(d) { const t = dealHappy(d); return t != null && String(t).trim() !== '' }
+    function matchFilter(d, f) { if (f === '전체') return true; if (f === '해피아워') return isHappyHourDeal(d); return dealType(d) === f }
+    function filteredDealsForStore(store, f) { return getDealsForStore(storeId(store)).filter(d => matchFilter(d, f)) }
+    function storeVisible(store, f) { if (f === '전체') return true; return filteredDealsForStore(store, f).length > 0 }
+    function parseHappyHour(str) { if (!str) return null; const m = str.match(/(\d{1,2}):(\d{2})[~\-](\d{1,2}):(\d{2})/); if (!m) return null; return { startH: +m[1], startM: +m[2], endH: +m[3], endM: +m[4] } }
+    function isHappyHourNow(d) { const h = dealHappy(d); if (!h) return false; const p = parseHappyHour(h); if (!p) return false; const now = new Date(); const nm = now.getHours() * 60 + now.getMinutes(); return nm >= p.startH * 60 + p.startM && nm <= p.endH * 60 + p.endM }
+    function getHappyHourStatus(sd) { const hd = sd.filter(isHappyHourDeal); if (!hd.length) return null; if (hd.some(isHappyHourNow)) { const p = parseHappyHour(dealHappy(hd[0])); if (p) { const now = new Date(); const rem = p.endH * 60 + p.endM - now.getHours() * 60 - now.getMinutes(); return { active: true, remaining: rem } } return { active: true, remaining: null } } return { active: false, timeStr: dealHappy(hd[0]) } }
+    function renderHappyBadge(sd) { const s = getHappyHourStatus(sd); if (!s) return ''; if (s.active) { const rem = s.remaining != null ? ` (${s.remaining}분 남음)` : ''; return `<div class="happy-now"><span class="happy-dot"></span>해피아워 진행중${rem}</div>` } return `<div class="happy-end">⏰ 해피아워 ${esc(s.timeStr)}</div>` }
+    function renderDealBadge(d) { const type = dealType(d); const p = formatPrice(dealPrice(d)); const h = dealHappy(d); if (!type) return ''; const label = p ? `${type} ${p}` : type; let html = `<span class="badge badge-deal">${esc(label)}</span>`; if (h && currentFilter === '해피아워') html += `<span class="badge badge-happy">⏰ ${esc(h)}</span>`; else if (h && currentFilter === '전체' && isHappyHourDeal(d)) html += `<span class="badge badge-happy">해피 ${esc(h)}</span>`; return html }
+    function renderStoreDealBadges(id) { return getDealsForStore(id).map(d => { const type = dealType(d); const p = formatPrice(dealPrice(d)); if (!type) return ''; const label = p ? `${type} ${p}` : type; let html = `<span class="badge badge-deal">${esc(label)}</span>`; if (dealHappy(d)) html += `<span class="badge badge-happy">해피 ${esc(dealHappy(d))}</span>`; return html }).filter(Boolean).join('') }
+    function storeCoords(store) { const la = parseFloat(store?.lat); const lo = parseFloat(store?.lng); if (isNaN(la) || isNaN(lo)) return null; return { lat: la, lng: lo } }
+    function haversineKm(lat1, lon1, lat2, lon2) { const R = 6371, toRad = d => d * Math.PI / 180; const a = Math.sin(toRad(lat2-lat1)/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(toRad(lon2-lon1)/2)**2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) }
+    function formatDistance(km) { return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km` }
+    function buildStoreDealSummary(id) { const lines = getDealsForStore(id).map(d => { const t = dealType(d); const p = formatPrice(dealPrice(d)); return t && p ? `${t} ${p}` : t || '' }).filter(Boolean); return lines.join(' / ') || '할인 정보 없음' }
+    function shareKakao(store) { const name = pick(store, 'name') || '가게'; const addr = pick(store, 'address') || ''; const dealText = buildStoreDealSummary(storeId(store)); const text = `🍺 술싸 - 김포 술 할인 정보\n\n📍 ${name}\n${addr}\n\n💰 ${dealText}\n\n👉 https://kimpo-app.vercel.app`; if (navigator.share) { navigator.share({ title: `술싸 - ${name}`, text, url: 'https://kimpo-app.vercel.app' }).catch(() => {}) } else { navigator.clipboard.writeText(text).then(() => showToast('📋 링크가 복사됐어요!')).catch(() => showToast('🍺 kimpo-app.vercel.app')) } }
+    function openModal(store) { const id = storeId(store); const name = pick(store, 'name') || '이름 없음'; const addr = pick(store, 'address') || '—'; const cat = pick(store, 'category') || ''; const sd = getDealsForStore(id); const dealRows = sd.map(d => { const type = dealType(d); const price = formatPrice(dealPrice(d)); const h = dealHappy(d); return `<div class="modal-deal-row"><span class="modal-deal-type">${esc(type||'-')}</span><div style="text-align:right"><div class="modal-deal-price">${esc(price||'-')}</div>${h ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">${isHappyHourNow(d) ? '⏰ 지금 해피아워!' : '⏰ ' + esc(h)}</div>` : ''}</div></div>` }).join(''); document.getElementById('modal-content').innerHTML = `${renderHappyBadge(sd)}<div class="modal-name">${esc(name)}</div><div class="modal-addr">📍 ${esc(addr)}</div>${cat ? `<div style="margin-bottom:0.5rem"><span class="badge badge-cat">${esc(cat)}</span></div>` : ''}<div class="modal-section-title">할인 정보</div><div>${dealRows || '<p style="color:var(--muted);font-size:0.9rem;padding:0.5rem 0">등록된 할인 정보가 없습니다.</p>'}</div><button class="modal-share-btn" onclick="shareKakao(window.currentModalStore)">💬 카카오톡으로 공유하기</button><button class="modal-close" onclick="closeModal()">닫기</button>`; window.currentModalStore = store; document.getElementById('modal-overlay').classList.add('show') }
     function closeModal() { document.getElementById('modal-overlay').classList.remove('show') }
-    document.getElementById('modal-overlay').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal() })
-
-    function renderHome() {
-      const el = document.getElementById('home-content')
-      let visible = stores.filter((s) => storeVisible(s, currentFilter))
-
-      if (searchQuery) {
-        visible = visible.filter(s => {
-          const name = (pick(s, 'name', 'store_name') || '').toLowerCase()
-          const addr = (pick(s, 'address') || '').toLowerCase()
-          return name.includes(searchQuery) || addr.includes(searchQuery)
-        })
-      }
-
-      if (!visible.length) {
-        el.innerHTML = '<div class="status-box"><p>표시할 가게가 없습니다.</p></div>'
-        return
-      }
-
-      const html = visible.map((store) => {
-        const id = storeId(store)
-        const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'
-        const addr = pick(store, '주소', 'address') || '—'
-        const cat = pick(store, '카테고리', 'category') || '기타'
-        const storeDeals = currentFilter === '전체' ? getDealsForStore(id) : filteredDealsForStore(store, currentFilter)
-        const dealBadges = storeDeals.map(renderDealBadge).filter(Boolean).join('')
-        const happyBadge = renderHappyBadge(getDealsForStore(id))
-
-        return `
-          <article class="store-card clickable" onclick="openModal(stores.find(s => String(s.id) === '${esc(String(id))}'))">
-            ${happyBadge}
-            <h3>${esc(name)}</h3>
-            <p class="addr">${esc(addr)}</p>
-            <div class="badges">
-              <span class="badge badge-cat">${esc(cat)}</span>
-              ${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}
-            </div>
-            <div class="store-card-footer">
-              <span style="font-size:0.78rem;color:var(--muted)">탭하면 상세보기</span>
-              <button class="share-btn" onclick="event.stopPropagation();shareKakao(stores.find(s=>String(s.id)==='${esc(String(id))}'))">💬 공유</button>
-            </div>
-          </article>
-        `
-      }).join('')
-
-      el.innerHTML = `<div class="card-list">${html}</div>`
-    }
-
-    async function loadData() {
-      const el = document.getElementById('home-content')
-      const [storesRes, dealsRes] = await Promise.all([db.from('stores').select('*'), db.from('deals').select('*')])
-      if (storesRes.error) { el.innerHTML = `<div class="status-box error"><p>가게 목록을 불러오지 못했습니다.<br>${esc(storesRes.error.message)}</p></div>`; return }
-      stores = storesRes.data || []
-      deals = dealsRes.error ? [] : (dealsRes.data || [])
-      renderHome()
-    }
-
-    // 검색
-    document.getElementById('search-input').addEventListener('input', (e) => {
-      searchQuery = e.target.value.trim().toLowerCase()
-      renderHome()
-    })
-
-    document.getElementById('filters').addEventListener('click', (e) => {
-      const btn = e.target.closest('.filter-btn')
-      if (!btn) return
-      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'))
-      btn.classList.add('active')
-      currentFilter = btn.dataset.filter
-      renderHome()
-    })
-
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const tab = btn.dataset.tab
-        document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'))
-        btn.classList.add('active')
-        document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'))
-        document.getElementById(`panel-${tab}`).classList.add('active')
-        if (tab === 'nearby') loadNearby()
-      })
-    })
-
-    document.querySelectorAll('#drink-rows input[type="checkbox"]').forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const type = cb.dataset.drink
-        const priceInput = document.querySelector(`.drink-price[data-drink="${type}"]`)
-        priceInput.disabled = !cb.checked
-        if (!cb.checked) priceInput.value = ''
-        if (cb.checked) priceInput.focus()
-      })
-    })
-
-    document.querySelectorAll('.drink-price').forEach((input) => { input.addEventListener('input', () => sanitizePriceInput(input)) })
-
-    function setGeoStatus(type, message) { const el = document.getElementById('geo-status'); if (!el) return; el.hidden = false; el.className = `geo-status ${type}`; el.textContent = message }
+    document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal() })
+    function renderHome() { const el = document.getElementById('home-content'); let visible = stores.filter(s => storeVisible(s, currentFilter)); if (searchQuery) visible = visible.filter(s => (pick(s,'name')||'').toLowerCase().includes(searchQuery) || (pick(s,'address')||'').toLowerCase().includes(searchQuery)); if (!visible.length) { el.innerHTML = '<div class="status-box"><p>표시할 가게가 없습니다.</p></div>'; return } const html = visible.map(store => { const id = storeId(store); const name = pick(store, 'name') || '이름 없음'; const addr = pick(store, 'address') || '—'; const cat = pick(store, 'category') || '기타'; const sd = currentFilter === '전체' ? getDealsForStore(id) : filteredDealsForStore(store, currentFilter); const dealBadges = sd.map(renderDealBadge).filter(Boolean).join(''); return `<article class="store-card clickable" onclick="openModal(stores.find(s=>String(s.id)==='${esc(String(id))}'))">${renderHappyBadge(getDealsForStore(id))}<h3>${esc(name)}</h3><p class="addr">${esc(addr)}</p><div class="badges"><span class="badge badge-cat">${esc(cat)}</span>${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div><div class="store-card-footer"><span style="font-size:0.78rem;color:var(--muted)">탭하면 상세보기</span><button class="share-btn" onclick="event.stopPropagation();shareKakao(stores.find(s=>String(s.id)==='${esc(String(id))}'))">💬 공유</button></div></article>` }).join(''); el.innerHTML = `<div class="card-list">${html}</div>` }
+    async function loadData() { const el = document.getElementById('home-content'); const [sr, dr] = await Promise.all([db.from('stores').select('*'), db.from('deals').select('*')]); if (sr.error) { el.innerHTML = `<div class="status-box error"><p>불러오기 실패: ${esc(sr.error.message)}</p></div>`; return } stores = sr.data || []; deals = dr.error ? [] : (dr.data || []); renderHome() }
+    document.getElementById('search-input').addEventListener('input', e => { searchQuery = e.target.value.trim().toLowerCase(); renderHome() })
+    document.getElementById('filters').addEventListener('click', e => { const btn = e.target.closest('.filter-btn'); if (!btn) return; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentFilter = btn.dataset.filter; renderHome() })
+    document.querySelectorAll('.tab-btn').forEach(btn => { btn.addEventListener('click', () => { const tab = btn.dataset.tab; document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.panel').forEach(p => p.classList.remove('active')); document.getElementById(`panel-${tab}`).classList.add('active'); if (tab === 'nearby') loadNearby() }) })
+    document.querySelectorAll('#drink-rows input[type="checkbox"]').forEach(cb => { cb.addEventListener('change', () => { const pi = document.querySelector(`.drink-price[data-drink="${cb.dataset.drink}"]`); pi.disabled = !cb.checked; if (!cb.checked) pi.value = ''; if (cb.checked) pi.focus() }) })
+    document.querySelectorAll('.drink-price').forEach(input => input.addEventListener('input', () => sanitizePriceInput(input)))
+    function setGeoStatus(type, msg) { const el = document.getElementById('geo-status'); if (!el) return; el.hidden = false; el.className = `geo-status ${type}`; el.textContent = msg }
     function clearGeoStatus() { reportGeocode = null; const el = document.getElementById('geo-status'); if (!el) return; el.hidden = true; el.textContent = ''; el.className = 'geo-status' }
     function hidePlaceSuggest() { const ul = document.getElementById('place-suggest'); if (!ul) return; ul.hidden = true; ul.innerHTML = ''; placeResultsCache = [] }
-
-    async function searchPlacesKeyword(query) {
-      const url = new URL('https://dapi.kakao.com/v2/local/search/keyword.json')
-      url.searchParams.set('query', query); url.searchParams.set('x', String(KIMPO_CENTER.x)); url.searchParams.set('y', String(KIMPO_CENTER.y)); url.searchParams.set('radius', String(KIMPO_CENTER.radius))
-      const res = await fetch(url.toString(), { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } })
-      if (!res.ok) throw new Error(`키워드 검색 API 오류 (${res.status})`)
-      const data = await res.json(); return data.documents || []
-    }
-
-    function renderPlaceSuggest(places) {
-      const ul = document.getElementById('place-suggest'); if (!ul) return
-      if (!places.length) { ul.innerHTML = '<li class="place-suggest-empty">검색 결과가 없어요</li>'; ul.hidden = false; return }
-      ul.innerHTML = places.map((place, index) => {
-        const addr = place.road_address_name || place.address_name || ''; const cat = place.category_name || ''
-        return `<li class="place-suggest-item" data-index="${index}" role="button" tabindex="0"><span class="place-name">${esc(place.place_name||'')}</span><span class="place-addr">${esc(addr)}</span><span class="place-cat">${esc(cat)}</span></li>`
-      }).join('')
-      ul.hidden = false
-    }
-
-    function selectPlace(place) {
-      document.getElementById('r-name').value = place.place_name || ''
-      document.getElementById('r-addr').value = place.road_address_name || place.address_name || ''
-      const lat = parseFloat(place.y); const lng = parseFloat(place.x)
-      if (!Number.isNaN(lat) && !Number.isNaN(lng)) { reportGeocode = { lat, lng }; setGeoStatus('ok', '📍 위치 확인됨') }
-      else { reportGeocode = null; clearGeoStatus() }
-      hidePlaceSuggest()
-    }
-
-    document.getElementById('r-name')?.addEventListener('input', (e) => {
-      const query = e.target.value.trim(); reportGeocode = null; clearGeoStatus(); clearTimeout(placeSearchTimer); document.getElementById('r-addr').value = ''
-      if (!query || query.length < 2) { hidePlaceSuggest(); return }
-      const seq = ++placeSearchSeq
-      placeSearchTimer = setTimeout(async () => {
-        try { const places = await searchPlacesKeyword(query); if (seq !== placeSearchSeq) return; placeResultsCache = places; renderPlaceSuggest(places) }
-        catch { if (seq !== placeSearchSeq) return; placeResultsCache = []; renderPlaceSuggest([]) }
-      }, 300)
-    })
-
-    document.getElementById('place-suggest')?.addEventListener('click', (e) => {
-      const item = e.target.closest('.place-suggest-item'); if (!item) return
-      const index = parseInt(item.dataset.index, 10); if (placeResultsCache[index]) selectPlace(placeResultsCache[index])
-    })
-
-    document.getElementById('place-suggest')?.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter' && e.key !== ' ') return
-      const item = e.target.closest('.place-suggest-item'); if (!item) return; e.preventDefault()
-      const index = parseInt(item.dataset.index, 10); if (placeResultsCache[index]) selectPlace(placeResultsCache[index])
-    })
-
-    document.addEventListener('click', (e) => { if (!e.target.closest('.place-search-field')) hidePlaceSuggest() })
-
-    function collectReportData(form) {
-      const store = { name: form['가게이름'].value.trim(), address: form['주소'].value.trim(), lat: reportGeocode.lat, lng: reportGeocode.lng }
-      const happy = form['해피아워시간'].value.trim(); const memo = form['메모'].value.trim(); const deals = []
-      for (const type of DRINK_TYPES) {
-        const cb = document.querySelector(`#drink-rows input[type="checkbox"][data-drink="${type}"]`)
-        const priceInput = document.querySelector(`.drink-price[data-drink="${type}"]`)
-        if (!cb?.checked) continue
-        const priceNum = parsePriceToInt(priceInput.value)
-        if (priceNum == null || priceNum <= 0) return { error: `${type} 할인가격을 숫자로 입력해주세요.` }
-        const deal = { 술종류: type, sale_price: priceNum }
-        if (happy) deal.해피아워시간 = happy
-        deals.push(deal)
-      }
-      if (!deals.length) return { error: '술종류를 하나 이상 선택해주세요.' }
-      return { store, deals, memo, happy }
-    }
-
-    async function saveReportToStoresAndDeals(data) {
-      const { data: newStore, error: storeError } = await db.from('stores').insert(data.store).select('id').single()
-      if (storeError) throw storeError
-      const sid = newStore.id
-      const dealRows = data.deals.map((deal) => ({ store_id: sid, drink_type: deal.술종류, sale_price: deal.sale_price, ...(deal.해피아워시간 ? { 해피아워시간: deal.해피아워시간 } : {}) }))
-      const { error: dealsError } = await db.from('deals').insert(dealRows)
-      if (dealsError) throw dealsError
-      return sid
-    }
-
-    function resetDrinkRows() {
-      document.querySelectorAll('#drink-rows input[type="checkbox"]').forEach((cb) => { cb.checked = false })
-      document.querySelectorAll('.drink-price').forEach((input) => { input.value = ''; input.disabled = true })
-    }
-
-    document.getElementById('report-form').addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const btn = document.getElementById('btn-report'); const form = e.target; const success = document.getElementById('report-success')
-      if (!reportGeocode) { alert('가게 이름을 검색한 뒤 목록에서 가게를 선택해주세요.'); return }
-      const collected = collectReportData(form)
-      if (collected.error) { alert(collected.error); return }
-      btn.disabled = true; success.classList.remove('show'); form.style.display = 'block'
-      try { await saveReportToStoresAndDeals(collected); await loadData() }
-      catch (err) { alert('제보 저장에 실패했습니다: ' + (err.message || String(err))); btn.disabled = false; return }
-      btn.disabled = false; form.reset(); resetDrinkRows(); clearGeoStatus(); hidePlaceSuggest(); form.style.display = 'none'; success.classList.add('show')
-      setTimeout(() => { success.classList.remove('show'); form.style.display = 'block' }, 3000)
-    })
-
-    // 내 주변
+    async function searchPlacesKeyword(query) { const url = new URL('https://dapi.kakao.com/v2/local/search/keyword.json'); url.searchParams.set('query', query); url.searchParams.set('x', String(KIMPO_CENTER.x)); url.searchParams.set('y', String(KIMPO_CENTER.y)); url.searchParams.set('radius', String(KIMPO_CENTER.radius)); const res = await fetch(url.toString(), { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }); const data = await res.json(); return data.documents || [] }
+    function renderPlaceSuggest(places) { const ul = document.getElementById('place-suggest'); if (!ul) return; if (!places.length) { ul.innerHTML = '<li class="place-suggest-empty">검색 결과가 없어요</li>'; ul.hidden = false; return } ul.innerHTML = places.map((p, i) => `<li class="place-suggest-item" data-index="${i}"><span class="place-name">${esc(p.place_name||'')}</span><span class="place-addr">${esc(p.road_address_name||p.address_name||'')}</span><span class="place-cat">${esc(p.category_name||'')}</span></li>`).join(''); ul.hidden = false }
+    function selectPlace(place) { document.getElementById('r-name').value = place.place_name || ''; document.getElementById('r-addr').value = place.road_address_name || place.address_name || ''; const lat = parseFloat(place.y); const lng = parseFloat(place.x); if (!isNaN(lat) && !isNaN(lng)) { reportGeocode = { lat, lng }; setGeoStatus('ok', '📍 위치 확인됨') } hidePlaceSuggest() }
+    document.getElementById('r-name')?.addEventListener('input', e => { const q = e.target.value.trim(); reportGeocode = null; clearGeoStatus(); clearTimeout(placeSearchTimer); document.getElementById('r-addr').value = ''; if (!q || q.length < 2) { hidePlaceSuggest(); return } const seq = ++placeSearchSeq; placeSearchTimer = setTimeout(async () => { try { const places = await searchPlacesKeyword(q); if (seq !== placeSearchSeq) return; placeResultsCache = places; renderPlaceSuggest(places) } catch { if (seq !== placeSearchSeq) return; placeResultsCache = []; renderPlaceSuggest([]) } }, 300) })
+    document.getElementById('place-suggest')?.addEventListener('click', e => { const item = e.target.closest('.place-suggest-item'); if (!item) return; const i = parseInt(item.dataset.index, 10); if (placeResultsCache[i]) selectPlace(placeResultsCache[i]) })
+    document.addEventListener('click', e => { if (!e.target.closest('.place-search-field')) hidePlaceSuggest() })
+    function collectReportData(form) { const store = { name: form['가게이름'].value.trim(), address: form['주소'].value.trim(), lat: reportGeocode.lat, lng: reportGeocode.lng }; const happy = form['해피아워시간'].value.trim(); const dealList = []; for (const type of DRINK_TYPES) { const cb = document.querySelector(`#drink-rows input[type="checkbox"][data-drink="${type}"]`); const pi = document.querySelector(`.drink-price[data-drink="${type}"]`); if (!cb?.checked) continue; const p = parsePriceToInt(pi.value); if (!p || p <= 0) return { error: `${type} 할인가격을 입력해주세요.` }; const deal = { 술종류: type, sale_price: p }; if (happy) deal.해피아워시간 = happy; dealList.push(deal) } if (!dealList.length) return { error: '술종류를 하나 이상 선택해주세요.' }; return { store, deals: dealList, happy } }
+    async function saveReportToStoresAndDeals(data) { const { data: ns, error: se } = await db.from('stores').insert(data.store).select('id').single(); if (se) throw se; const rows = data.deals.map(d => ({ store_id: ns.id, drink_type: d.술종류, sale_price: d.sale_price, ...(d.해피아워시간 ? { 해피아워시간: d.해피아워시간 } : {}) })); const { error: de } = await db.from('deals').insert(rows); if (de) throw de }
+    function resetDrinkRows() { document.querySelectorAll('#drink-rows input[type="checkbox"]').forEach(cb => cb.checked = false); document.querySelectorAll('.drink-price').forEach(input => { input.value = ''; input.disabled = true }) }
+    document.getElementById('report-form').addEventListener('submit', async e => { e.preventDefault(); const btn = document.getElementById('btn-report'); const form = e.target; const success = document.getElementById('report-success'); if (!reportGeocode) { alert('가게를 검색해서 선택해주세요.'); return } const collected = collectReportData(form); if (collected.error) { alert(collected.error); return } btn.disabled = true; try { await saveReportToStoresAndDeals(collected); await loadData() } catch (err) { alert('저장 실패: ' + (err.message || String(err))); btn.disabled = false; return } btn.disabled = false; form.reset(); resetDrinkRows(); clearGeoStatus(); hidePlaceSuggest(); form.style.display = 'none'; success.classList.add('show'); setTimeout(() => { success.classList.remove('show'); form.style.display = 'block' }, 3000) })
     function setNearbyContent(html) { document.getElementById('nearby-content').innerHTML = html }
-
-    function buildStoreDealSummary(storeIdVal) {
-      const lines = getDealsForStore(storeIdVal).map((deal) => { const type = dealType(deal); const priceText = formatPrice(dealPrice(deal)); if (!type) return ''; return priceText ? `${type} ${priceText}` : type }).filter(Boolean)
-      return lines.length ? lines.join(' / ') : '할인 정보 없음'
-    }
-
-    function buildStorePopupHtml(store) {
-      const id = storeId(store); const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'; const addr = pick(store, '주소', 'address') || '—'
-      return `<div class="map-popup-title">${esc(name)}</div><div class="map-popup-addr">${esc(addr)}</div><div class="map-popup-deal">${esc(buildStoreDealSummary(id))}</div>`
-    }
-
-    function buildNearbyCard({ store, km }) {
-      const id = storeId(store); const name = pick(store, '가게이름', 'store_name', 'name') || '이름 없음'; const addr = pick(store, '주소', 'address') || '—'
-      const dealBadges = renderStoreDealBadges(id); const happyBadge = renderHappyBadge(getDealsForStore(id))
-      return `<article class="store-card nearby-card" data-store-id="${esc(String(id))}" role="button" tabindex="0">${happyBadge}<p class="distance">${esc(formatDistance(km))}</p><h3>${esc(name)}</h3><p class="addr">${esc(addr)}</p><div class="badges">${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div></article>`
-    }
-
-    function focusNearbyStore(storeIdVal) {
-      const id = String(storeIdVal); const marker = nearbyStoreMarkers.get(id)
-      if (!marker || !nearbyLeafletMap) return
-      const { lat, lng } = marker.getLatLng(); nearbyLeafletMap.setView([lat, lng], 16, { animate: true }); marker.openPopup()
-      document.querySelectorAll('.nearby-card.active').forEach((el) => el.classList.remove('active'))
-      const card = document.querySelector(`.nearby-card[data-store-id="${id}"]`)
-      if (card) { card.classList.add('active'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
-    }
-
-    function setupNearbyCardClicks() {
-      const list = document.querySelector('#nearby-content .card-list'); if (!list) return
-      list.addEventListener('click', (e) => { const card = e.target.closest('.nearby-card'); if (!card?.dataset.storeId) return; focusNearbyStore(card.dataset.storeId) })
-      list.addEventListener('keydown', (e) => { if (e.key !== 'Enter' && e.key !== ' ') return; const card = e.target.closest('.nearby-card'); if (!card?.dataset.storeId) return; e.preventDefault(); focusNearbyStore(card.dataset.storeId) })
-    }
-
-    function initNearbyMap(userLat, userLng, ranked) {
-      const container = document.getElementById('nearby-map'); if (!container || typeof L === 'undefined') return
-      if (nearbyLeafletMap) { nearbyLeafletMap.remove(); nearbyLeafletMap = null }
-      nearbyStoreMarkers.clear()
-      nearbyLeafletMap = L.map(container).setView([userLat, userLng], 14)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(nearbyLeafletMap)
-      const markerGroup = L.featureGroup()
-      L.circleMarker([userLat, userLng], { radius: 10, fillColor: '#2563eb', color: '#ffffff', weight: 3, fillOpacity: 0.95 }).bindPopup('내 위치').addTo(markerGroup)
-      ranked.forEach(({ store }) => {
-        const coords = storeCoords(store); if (!coords) return
-        const storeMarker = L.circleMarker([coords.lat, coords.lng], { radius: 8, fillColor: '#1D9E75', color: '#ffffff', weight: 2, fillOpacity: 0.95 }).bindPopup(buildStorePopupHtml(store), { maxWidth: 280 })
-        const sid = storeId(store); if (sid != null) nearbyStoreMarkers.set(String(sid), storeMarker)
-        markerGroup.addLayer(storeMarker)
-      })
-      markerGroup.addTo(nearbyLeafletMap)
-      if (markerGroup.getLayers().length > 0) nearbyLeafletMap.fitBounds(markerGroup.getBounds().pad(0.15), { maxZoom: 16, animate: true })
-      setTimeout(() => nearbyLeafletMap.invalidateSize(), 200)
-    }
-
-    async function ensureStoreData() {
-      if (stores.length && deals.length) return true
-      const [storesRes, dealsRes] = await Promise.all([stores.length ? Promise.resolve({ data: stores, error: null }) : db.from('stores').select('*'), deals.length ? Promise.resolve({ data: deals, error: null }) : db.from('deals').select('*')])
-      if (storesRes.error) return { error: storesRes.error.message }
-      stores = storesRes.data || []; deals = dealsRes.error ? [] : (dealsRes.data || [])
-      return true
-    }
-
-    async function renderNearby(userLat, userLng) {
-      const ready = await ensureStoreData()
-      if (ready.error) { setNearbyContent(`<div class="status-box error"><p>가게 목록을 불러오지 못했습니다.<br>${esc(ready.error)}</p></div>`); return }
-      const ranked = stores.map((store) => { const coords = storeCoords(store); if (!coords) return null; return { store, km: haversineKm(userLat, userLng, coords.lat, coords.lng) } }).filter(Boolean).sort((a, b) => a.km - b.km)
-      if (!ranked.length) { setNearbyContent('<div class="status-box"><p>거리를 계산할 수 있는 가게가 없습니다.</p></div>'); return }
-      const cardsHtml = ranked.map(buildNearbyCard).join('')
-      setNearbyContent(`<div id="nearby-map" class="nearby-map" aria-label="주변 가게 지도"></div><p class="nearby-section-title">가까운 가게</p><div class="card-list">${cardsHtml}</div>`)
-      initNearbyMap(userLat, userLng, ranked)
-      setupNearbyCardClicks()
-    }
-
-    function loadNearby() {
-      setNearbyContent('<div class="status-box"><div class="spinner"></div><p>내 위치 찾는 중...</p></div>')
-      if (!navigator.geolocation) { setNearbyContent('<div class="status-box error"><p>이 기기에서는 GPS를 사용할 수 없습니다.</p></div>'); return }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => renderNearby(pos.coords.latitude, pos.coords.longitude),
-        (err) => { if (err.code === err.PERMISSION_DENIED) { setNearbyContent('<div class="status-box error"><p>위치 권한을 허용해주세요</p></div>'); return } setNearbyContent('<div class="status-box error"><p>위치를 가져오지 못했습니다. 다시 시도해주세요.</p></div>') },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
-      )
-    }
-
+    function initKakaoMap(userLat, userLng, ranked) { kakao.maps.load(() => { const container = document.getElementById('nearby-map'); if (!container) return; kakaoOverlays.forEach(o => o.setMap(null)); kakaoOverlays = []; kakaoMap = new kakao.maps.Map(container, { center: new kakao.maps.LatLng(userLat, userLng), level: 5 }); const myEl = document.createElement('div'); myEl.className = 'my-location-marker'; const myOverlay = new kakao.maps.CustomOverlay({ map: kakaoMap, position: new kakao.maps.LatLng(userLat, userLng), content: myEl, yAnchor: 0.5 }); kakaoOverlays.push(myOverlay); ranked.forEach(({ store }) => { const coords = storeCoords(store); if (!coords) return; const id = storeId(store); const name = pick(store, 'name') || '가게'; const dealSummary = buildStoreDealSummary(id); const el = document.createElement('div'); el.className = 'kakao-overlay'; el.innerHTML = `<div class="ov-name">🍺 ${esc(name)}</div><div class="ov-deal">${esc(dealSummary)}</div>`; el.addEventListener('click', () => focusNearbyStore(String(id))); const overlay = new kakao.maps.CustomOverlay({ map: kakaoMap, position: new kakao.maps.LatLng(coords.lat, coords.lng), content: el, yAnchor: 1.3, zIndex: 3 }); overlay.storeId = String(id); kakaoOverlays.push(overlay) }); if (ranked.length > 0) { const bounds = new kakao.maps.LatLngBounds(); bounds.extend(new kakao.maps.LatLng(userLat, userLng)); ranked.forEach(({ store }) => { const c = storeCoords(store); if (c) bounds.extend(new kakao.maps.LatLng(c.lat, c.lng)) }); kakaoMap.setBounds(bounds) } }) }
+    function focusNearbyStore(id) { const overlay = kakaoOverlays.find(o => o.storeId === id); if (overlay && kakaoMap) { kakaoMap.setCenter(overlay.getPosition()); kakaoMap.setLevel(3, { animate: true }) } document.querySelectorAll('.nearby-card.active').forEach(el => el.classList.remove('active')); const card = document.querySelector(`.nearby-card[data-store-id="${id}"]`); if (card) { card.classList.add('active'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) } }
+    function buildNearbyCard({ store, km }) { const id = storeId(store); const name = pick(store, 'name') || '이름 없음'; const addr = pick(store, 'address') || '—'; const dealBadges = renderStoreDealBadges(id); const happyBadge = renderHappyBadge(getDealsForStore(id)); return `<article class="store-card nearby-card" data-store-id="${esc(String(id))}" role="button" tabindex="0">${happyBadge}<p class="distance">${esc(formatDistance(km))}</p><h3>${esc(name)}</h3><p class="addr">${esc(addr)}</p><div class="badges">${dealBadges || '<span class="badge badge-deal">할인 정보 없음</span>'}</div></article>` }
+    function setupNearbyCardClicks() { const list = document.querySelector('#nearby-content .card-list'); if (!list) return; list.addEventListener('click', e => { const card = e.target.closest('.nearby-card'); if (!card?.dataset.storeId) return; focusNearbyStore(card.dataset.storeId) }) }
+    async function renderNearby(userLat, userLng) { if (!stores.length) { const [sr, dr] = await Promise.all([db.from('stores').select('*'), db.from('deals').select('*')]); stores = sr.data || []; deals = dr.error ? [] : (dr.data || []) } const ranked = stores.map(store => { const c = storeCoords(store); if (!c) return null; return { store, km: haversineKm(userLat, userLng, c.lat, c.lng) } }).filter(Boolean).sort((a, b) => a.km - b.km); if (!ranked.length) { setNearbyContent('<div class="status-box"><p>주변 가게를 찾을 수 없습니다.</p></div>'); return } const cardsHtml = ranked.map(buildNearbyCard).join(''); setNearbyContent(`<div id="nearby-map" class="nearby-map"></div><p class="nearby-section-title">가까운 가게</p><div class="card-list">${cardsHtml}</div>`); initKakaoMap(userLat, userLng, ranked); setupNearbyCardClicks() }
+    function loadNearby() { setNearbyContent('<div class="status-box"><div class="spinner"></div><p>내 위치 찾는 중...</p></div>'); if (!navigator.geolocation) { setNearbyContent('<div class="status-box error"><p>GPS를 사용할 수 없습니다.</p></div>'); return } navigator.geolocation.getCurrentPosition(pos => renderNearby(pos.coords.latitude, pos.coords.longitude), err => { if (err.code === err.PERMISSION_DENIED) setNearbyContent('<div class="status-box error"><p>위치 권한을 허용해주세요</p></div>'); else setNearbyContent('<div class="status-box error"><p>위치를 가져오지 못했습니다.</p></div>') }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }) }
     loadData()
   </script>
 </body>
