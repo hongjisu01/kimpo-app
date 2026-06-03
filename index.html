@@ -153,6 +153,15 @@
     .empty-review { font-size: 0.85rem; color: var(--muted); padding: 0.5rem 0; }
     .fav-empty { text-align: center; padding: 3rem 1rem; color: var(--muted); }
     .menu-link-btn { display: block; text-align: center; padding: 0.7rem; background: #fee500; color: #3c1e1e; border-radius: 10px; font-size: 0.88rem; font-weight: 700; text-decoration: none; margin: 0.3rem 0 0.5rem; }
+    .install-btn { position: relative; z-index: 1; margin-top: 0.85rem; background: linear-gradient(180deg, rgba(212,175,95,0.22), rgba(168,125,60,0.18)); color: #f0d99a; border: 1px solid rgba(198,160,90,0.5); border-radius: 999px; padding: 0.5rem 1rem; font-size: 0.8rem; font-weight: 700; cursor: pointer; backdrop-filter: blur(4px); }
+    .install-btn:active { transform: scale(0.97); }
+    .ios-guide { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 400; align-items: center; justify-content: center; padding: 1.5rem; }
+    .ios-guide.show { display: flex; }
+    .ios-guide-box { background: #fff; border-radius: 18px; padding: 1.5rem 1.3rem; max-width: 340px; text-align: center; }
+    .ios-guide-box h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.85rem; }
+    .ios-guide-box ol { text-align: left; font-size: 0.9rem; line-height: 1.7; padding-left: 1.2rem; color: var(--text); }
+    .ios-guide-box .share-ico { display: inline-block; vertical-align: middle; }
+    .ios-guide-box button { margin-top: 1.2rem; width: 100%; padding: 0.7rem; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 700; cursor: pointer; }
     .kakao-overlay { background: #fff; border-radius: 10px; padding: 7px 11px; box-shadow: 0 2px 12px rgba(0,0,0,0.18); border: 1.5px solid var(--primary); font-size: 12px; min-width: 110px; cursor: pointer; position: relative; }
     .kakao-overlay::after { content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); border: 8px solid transparent; border-top-color: var(--primary); border-bottom: none; }
     .kakao-overlay .ov-name { font-weight: 700; color: var(--text); margin-bottom: 2px; }
@@ -162,7 +171,7 @@
 </head>
 <body>
   <div class="app">
-    <header class="topbar"><div class="brand-row"><h1>술싸</h1><span class="est">SULSSA</span></div><p>전국 술 할인 정보</p></header>
+    <header class="topbar"><div class="brand-row"><h1>술싸</h1><span class="est">SULSSA</span></div><p>전국 술 할인 정보</p><button id="install-btn" class="install-btn" hidden>📲 홈 화면에 추가</button></header>
     <main>
       <section id="panel-home" class="panel active">
         <div class="search-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input" id="search-input" placeholder="가게 이름 검색..." /></div>
@@ -208,6 +217,17 @@
   </div>
   <div class="modal-overlay" id="modal-overlay"><div class="modal-box"><div class="modal-handle"></div><div id="modal-content"></div></div></div>
   <div class="toast" id="toast"></div>
+  <div class="ios-guide" id="ios-guide">
+    <div class="ios-guide-box">
+      <h3>📲 홈 화면에 추가하기</h3>
+      <ol>
+        <li>하단의 <strong>공유 버튼</strong> <span class="share-ico">⬆️</span> 을 누르세요</li>
+        <li>아래로 내려서 <strong>"홈 화면에 추가"</strong> 를 누르세요</li>
+        <li><strong>"추가"</strong> 를 누르면 끝!</li>
+      </ol>
+      <button onclick="document.getElementById('ios-guide').classList.remove('show')">알겠어요</button>
+    </div>
+  </div>
   <script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=006a0f6a0626dc06f75b66d845c5f920&autoload=false"></script>
   <script>
     const SUPABASE_URL = 'https://cmuwjuuvatuhmqohfngl.supabase.co'
@@ -297,6 +317,22 @@
     function setupNearbyCardClicks() { const list = document.querySelector('#nearby-content .card-list'); if (!list) return; list.addEventListener('click', e => { const card = e.target.closest('.nearby-card'); if (!card?.dataset.storeId) return; focusNearbyStore(card.dataset.storeId) }) }
     async function renderNearby(userLat, userLng) { if (!stores.length) { const [sr, dr] = await Promise.all([db.from('stores').select('*'), db.from('deals').select('*')]); stores = sr.data || []; deals = dr.error ? [] : (dr.data || []) } const ranked = stores.map(store => { const c = storeCoords(store); if (!c) return null; return { store, km: haversineKm(userLat, userLng, c.lat, c.lng) } }).filter(Boolean).sort((a, b) => a.km - b.km); if (!ranked.length) { setNearbyContent('<div class="status-box"><p>주변 가게를 찾을 수 없습니다.</p></div>'); return } const cardsHtml = ranked.map(buildNearbyCard).join(''); setNearbyContent(`<div id="nearby-map" class="nearby-map"></div><p class="nearby-section-title">가까운 가게</p><div class="card-list">${cardsHtml}</div>`); initKakaoMap(userLat, userLng, ranked); setupNearbyCardClicks() }
     function loadNearby() { setNearbyContent('<div class="status-box"><div class="spinner"></div><p>내 위치 찾는 중...</p></div>'); if (!navigator.geolocation) { setNearbyContent('<div class="status-box error"><p>GPS를 사용할 수 없습니다.</p></div>'); return } navigator.geolocation.getCurrentPosition(pos => renderNearby(pos.coords.latitude, pos.coords.longitude), err => { if (err.code === err.PERMISSION_DENIED) setNearbyContent('<div class="status-box error"><p>위치 권한을 허용해주세요</p></div>'); else setNearbyContent('<div class="status-box error"><p>위치를 가져오지 못했습니다.</p></div>') }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }) }
+    // PWA 홈 화면 추가
+    let deferredPrompt = null
+    const installBtn = document.getElementById('install-btn')
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    if (!isStandalone) {
+      if (isIOS) { installBtn.hidden = false }
+      window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; installBtn.hidden = false })
+    }
+    installBtn?.addEventListener('click', async () => {
+      if (deferredPrompt) { deferredPrompt.prompt(); const { outcome } = await deferredPrompt.userChoice; if (outcome === 'accepted') { installBtn.hidden = true; showToast('🍻 설치됐어요!') } deferredPrompt = null }
+      else if (isIOS) { document.getElementById('ios-guide').classList.add('show') }
+      else { showToast('브라우저 메뉴에서 "홈 화면에 추가"를 눌러주세요') }
+    })
+    window.addEventListener('appinstalled', () => { installBtn.hidden = true; deferredPrompt = null })
+
     loadData()
   </script>
 </body>
