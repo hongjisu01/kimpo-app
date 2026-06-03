@@ -489,6 +489,7 @@
             <input type="number" id="add-sale-price" placeholder="할인가격 (원) *" />
             <input type="number" id="add-orig-price" placeholder="원래가격 (원)" />
             <input type="text" id="add-happy" placeholder="해피아워 (예: 17:00~19:00)" />
+            <input type="text" id="add-menu" class="full" placeholder="주메뉴 (예: 곱창, 막창, 양념구이)" />
           </div>
           <button class="add-btn" id="add-store-btn" onclick="addStore()">가게 추가하기</button>
         </div>
@@ -550,6 +551,7 @@
     document.getElementById('add-lat').value = p.y || ''
     document.getElementById('add-lng').value = p.x || ''
     adminGeocode = { lat: parseFloat(p.y), lng: parseFloat(p.x) }
+    window.adminPlaceUrl = p.place_url || null
     hideAdminSuggest()
   }
 
@@ -818,6 +820,9 @@
       const storeRow = { name, address, category: category || '기타' }
       if (!isNaN(lat)) storeRow.lat = lat
       if (!isNaN(lng)) storeRow.lng = lng
+      const menuVal = (document.getElementById('add-menu')?.value || '').trim()
+      if (menuVal) storeRow.menu = menuVal
+      if (window.adminPlaceUrl) storeRow.place_url = window.adminPlaceUrl
 
       const { data: newStore, error: storeErr } = await db.from('stores').insert(storeRow).select('id').single()
       if (storeErr) throw storeErr
@@ -839,6 +844,8 @@
       document.getElementById('add-sale-price').value = ''
       document.getElementById('add-orig-price').value = ''
       document.getElementById('add-happy').value = ''
+      const am = document.getElementById('add-menu'); if (am) am.value = ''
+      window.adminPlaceUrl = null
 
       await loadAll()
     } catch (err) {
